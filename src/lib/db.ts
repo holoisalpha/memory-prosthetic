@@ -16,20 +16,35 @@ class MemoryDatabase extends Dexie {
 
 export const db = new MemoryDatabase();
 
-// Initialize default settings if not present
+// Initialize default settings if not present, or migrate existing settings
 export async function initSettings(): Promise<Settings> {
   const existing = await db.settings.get('default');
-  if (existing) return existing;
 
-  const settings: Settings = {
+  const defaults: Settings = {
     id: 'default',
     resurfacing_enabled: false,
     notifications_enabled: false,
     morning_reminder_time: '08:00',
     evening_reminder_time: '20:00'
   };
-  await db.settings.put(settings);
-  return settings;
+
+  if (!existing) {
+    await db.settings.put(defaults);
+    return defaults;
+  }
+
+  // Migrate: add any missing fields to existing settings
+  const updated: Settings = {
+    ...defaults,
+    ...existing
+  };
+
+  // Only update if there are new fields
+  if (JSON.stringify(existing) !== JSON.stringify(updated)) {
+    await db.settings.put(updated);
+  }
+
+  return updated;
 }
 
 // Helper: Get local date string (YYYY-MM-DD)
