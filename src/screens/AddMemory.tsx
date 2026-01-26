@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { TypeSelector } from '../components/TypeSelector';
 import { ToneSelector } from '../components/ToneSelector';
-import { useTodaysEntries, canAddGratitude, canAddPhoto, addEntry, updateEntry } from '../hooks/useMemories';
+import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hooks/useMemories';
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
 
 const MAX_LENGTH = 240;
@@ -22,7 +22,6 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canGratitude = canAddGratitude(entries) || editingEntry?.type === 'gratitude';
-  const canPhoto = canAddPhoto(entries) || !!editingEntry?.photo_url;
   const disabledTypes: MemoryType[] = canGratitude ? [] : ['gratitude'];
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,7 +47,7 @@ export function AddMemory({ onClose, editingEntry }: Props) {
 
     try {
       if (editingEntry) {
-        const success = await updateEntry(editingEntry.id, { content: content.trim(), tone, type });
+        const success = await updateEntry(editingEntry.id, { content: content.trim(), tone, type, photo_url: photoUrl });
         if (!success) {
           setError('Could not update entry');
           return;
@@ -132,9 +131,8 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           <ToneSelector selected={tone} onChange={setTone} />
         </section>
 
-        {/* Photo (only for new entries) */}
-        {!editingEntry && canPhoto && (
-          <section>
+        {/* Photo */}
+        <section>
             <label className="block text-xs text-stone-400 uppercase tracking-wide mb-2">
               Photo (optional)
             </label>
@@ -168,7 +166,6 @@ export function AddMemory({ onClose, editingEntry }: Props) {
               </button>
             )}
           </section>
-        )}
       </main>
     </div>
   );

@@ -55,12 +55,6 @@ export function canAddGratitude(todaysEntries: MemoryEntry[] | undefined): boole
   return gratitudeCount < MAX_GRATITUDE_PER_DAY;
 }
 
-// Check if can add photo today
-export function canAddPhoto(todaysEntries: MemoryEntry[] | undefined): boolean {
-  if (!todaysEntries) return true;
-  return !todaysEntries.some(e => e.photo_url);
-}
-
 // Add a new memory entry
 export async function addEntry(
   type: MemoryType,
@@ -81,10 +75,6 @@ export async function addEntry(
     if (gratitudeCount >= MAX_GRATITUDE_PER_DAY) {
       return { error: 'Maximum 1 gratitude entry per day reached' };
     }
-  }
-
-  if (photoUrl && todaysEntries.some(e => e.photo_url)) {
-    return { error: 'Maximum 1 photo per day reached' };
   }
 
   if (content.length > MAX_CONTENT_LENGTH) {
@@ -108,7 +98,7 @@ export async function addEntry(
 // Update an entry (only if still today)
 export async function updateEntry(
   id: string,
-  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type'>>
+  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_url'>>
 ): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
