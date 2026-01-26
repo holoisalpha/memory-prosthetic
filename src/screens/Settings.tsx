@@ -9,9 +9,18 @@ export function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
 
+  // Sync notification state with both OneSignal and local settings
   useEffect(() => {
-    setNotificationsEnabled(isOptedIn());
-  }, []);
+    const checkStatus = () => {
+      const oneSignalOptedIn = isOptedIn();
+      const localEnabled = settings?.notifications_enabled ?? false;
+      setNotificationsEnabled(oneSignalOptedIn || localEnabled);
+    };
+    checkStatus();
+    // Re-check after a short delay for OneSignal to initialize
+    const timer = setTimeout(checkStatus, 1000);
+    return () => clearTimeout(timer);
+  }, [settings?.notifications_enabled]);
 
   const handleToggleNotifications = async () => {
     setNotificationLoading(true);
