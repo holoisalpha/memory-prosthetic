@@ -9,6 +9,7 @@ export function Settings() {
 
   const handleToggleNotifications = async () => {
     const newValue = !settings?.notifications_enabled;
+    console.log('Toggle notifications:', { current: settings?.notifications_enabled, newValue });
 
     // Update local settings first (so UI responds immediately)
     await updateSettings({
@@ -99,16 +100,17 @@ export function Settings() {
               </p>
             </div>
             <button
-              onClick={handleToggleNotifications}
+              type="button"
+              onPointerDown={(e) => { e.preventDefault(); handleToggleNotifications(); }}
               className={`
-                w-12 h-6 rounded-full transition-colors relative
+                w-14 h-8 rounded-full transition-colors relative cursor-pointer touch-manipulation
                 ${notificationsEnabled ? 'bg-stone-900' : 'bg-stone-200'}
               `}
             >
               <span
                 className={`
-                  absolute top-1 w-4 h-4 rounded-full bg-white transition-transform
-                  ${notificationsEnabled ? 'left-7' : 'left-1'}
+                  absolute top-1.5 w-5 h-5 rounded-full bg-white transition-transform shadow
+                  ${notificationsEnabled ? 'left-8' : 'left-1'}
                 `}
               />
             </button>
@@ -154,16 +156,17 @@ export function Settings() {
               </p>
             </div>
             <button
-              onClick={() => updateSettings({ resurfacing_enabled: !settings?.resurfacing_enabled })}
+              type="button"
+              onPointerDown={(e) => { e.preventDefault(); updateSettings({ resurfacing_enabled: !settings?.resurfacing_enabled }); }}
               className={`
-                w-12 h-6 rounded-full transition-colors relative
+                w-14 h-8 rounded-full transition-colors relative cursor-pointer touch-manipulation
                 ${settings?.resurfacing_enabled ? 'bg-stone-900' : 'bg-stone-200'}
               `}
             >
               <span
                 className={`
-                  absolute top-1 w-4 h-4 rounded-full bg-white transition-transform
-                  ${settings?.resurfacing_enabled ? 'left-7' : 'left-1'}
+                  absolute top-1.5 w-5 h-5 rounded-full bg-white transition-transform shadow
+                  ${settings?.resurfacing_enabled ? 'left-8' : 'left-1'}
                 `}
               />
             </button>
