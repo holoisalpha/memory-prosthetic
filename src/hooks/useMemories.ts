@@ -141,7 +141,9 @@ export async function deleteEntry(id: string): Promise<boolean> {
 
 // Update settings
 export async function updateSettings(updates: Partial<Settings>): Promise<void> {
-  await db.settings.update('default', updates);
+  const existing = await db.settings.get('default');
+  const merged = { ...existing, ...updates, id: 'default' };
+  await db.settings.put(merged);
 }
 
 // Get a random resurfaced memory (for gentle resurfacing)
