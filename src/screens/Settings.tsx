@@ -1,52 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
-import { requestNotificationPermission, isOptedIn, setOptedIn, updateReminderTimes } from '../lib/notifications';
+import { requestNotificationPermission, setOptedIn, updateReminderTimes } from '../lib/notifications';
 
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState('');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [notificationLoading, setNotificationLoading] = useState(false);
-
-  // Sync notification state with both OneSignal and local settings
-  useEffect(() => {
-    const checkStatus = () => {
-      const oneSignalOptedIn = isOptedIn();
-      const localEnabled = settings?.notifications_enabled ?? false;
-      setNotificationsEnabled(oneSignalOptedIn || localEnabled);
-    };
-    checkStatus();
-    // Re-check after a short delay for OneSignal to initialize
-    const timer = setTimeout(checkStatus, 1000);
-    return () => clearTimeout(timer);
-  }, [settings?.notifications_enabled]);
 
   const handleToggleNotifications = async () => {
-    setNotificationLoading(true);
-    try {
-      if (!notificationsEnabled) {
+    const newValue = !settings?.notifications_enabled;
+
+    // Update local settings first (so UI responds immediately)
+    await updateSettings({
+      notifications_enabled: newValue,
+      morning_reminder_time: settings?.morning_reminder_time || '08:00',
+      evening_reminder_time: settings?.evening_reminder_time || '20:00'
+    });
+
+    // Then handle OneSignal
+    if (newValue) {
+      try {
         const granted = await requestNotificationPermission();
         if (granted) {
           await setOptedIn(true);
-          setNotificationsEnabled(true);
-          // Set default times if not already set
-          if (!settings?.morning_reminder_time) {
-            await updateSettings({
-              notifications_enabled: true,
-              morning_reminder_time: '08:00',
-              evening_reminder_time: '20:00'
-            });
-            await updateReminderTimes('08:00', '20:00');
-          }
+          await updateReminderTimes(
+            settings?.morning_reminder_time || '08:00',
+            settings?.evening_reminder_time || '20:00'
+          );
         }
-      } else {
-        await setOptedIn(false);
-        setNotificationsEnabled(false);
-        await updateSettings({ notifications_enabled: false });
+      } catch (err) {
+        console.error('OneSignal error:', err);
       }
-    } finally {
-      setNotificationLoading(false);
+    } else {
+      try {
+        await setOptedIn(false);
+      } catch (err) {
+        console.error('OneSignal error:', err);
+      }
     }
   };
 
@@ -90,6 +80,8 @@ export function Settings() {
     window.location.reload();
   };
 
+  const notificationsEnabled = settings?.notifications_enabled ?? false;
+
   return (
     <div className="min-h-screen bg-stone-50 pb-20">
       <header className="bg-white border-b border-stone-200 px-4 py-4">
@@ -108,11 +100,9 @@ export function Settings() {
             </div>
             <button
               onClick={handleToggleNotifications}
-              disabled={notificationLoading}
               className={`
                 w-12 h-6 rounded-full transition-colors relative
                 ${notificationsEnabled ? 'bg-stone-900' : 'bg-stone-200'}
-                ${notificationLoading ? 'opacity-50' : ''}
               `}
             >
               <span
