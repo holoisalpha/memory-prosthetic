@@ -98,11 +98,11 @@ export default async function handler(req, res) {
       const sendAt = toUTCTimestamp(morning_time);
       results.morning_send_at = sendAt;
 
-      const r = await fetch('https://api.onesignal.com/notifications', {
+      const r = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${ONESIGNAL_API_KEY}`
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
         },
         body: JSON.stringify({
           app_id: ONESIGNAL_APP_ID,
@@ -122,11 +122,11 @@ export default async function handler(req, res) {
       const sendAt = toUTCTimestamp(evening_time);
       results.evening_send_at = sendAt;
 
-      const r = await fetch('https://api.onesignal.com/notifications', {
+      const r = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${ONESIGNAL_API_KEY}`
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
         },
         body: JSON.stringify({
           app_id: ONESIGNAL_APP_ID,
