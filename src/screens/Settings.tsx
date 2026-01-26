@@ -7,6 +7,12 @@ declare global {
   }
 }
 
+// Round time to nearest hour for tag matching
+function roundToHour(time: string): string {
+  const [hours] = time.split(':');
+  return `${hours.padStart(2, '0')}:00`;
+}
+
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -16,7 +22,6 @@ export function Settings() {
   const [eveningTime, setEveningTime] = useState('20:00');
   const [resurfacingOn, setResurfacingOn] = useState(false);
 
-  // Sync from DB when loaded
   useEffect(() => {
     if (settings) {
       setNotificationsOn(settings.notifications_enabled === true);
@@ -26,21 +31,15 @@ export function Settings() {
     }
   }, [settings]);
 
-  const scheduleNotifications = async (morning: string, evening: string) => {
-    try {
-      await fetch('/api/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          enabled: true,
-          morning_time: morning,
-          evening_time: evening,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        })
+  // Set OneSignal tags for notification times
+  const setOneSignalTags = (morning: string, evening: string) => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      await OneSignal.User.addTags({
+        morning_time: roundToHour(morning),
+        evening_time: roundToHour(evening)
       });
-    } catch (err) {
-      console.error('Failed to schedule notifications:', err);
-    }
+    });
   };
 
   const toggleNotifications = async () => {
@@ -48,12 +47,11 @@ export function Settings() {
     setNotificationsOn(newVal);
     await updateSettings({ notifications_enabled: newVal });
 
-    // Use OneSignal to opt in/out
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal) => {
       if (newVal) {
         await OneSignal.Notifications.requestPermission();
-        await scheduleNotifications(morningTime, eveningTime);
+        setOneSignalTags(morningTime, eveningTime);
       }
     });
   };
@@ -62,7 +60,7 @@ export function Settings() {
     setMorningTime(time);
     await updateSettings({ morning_reminder_time: time });
     if (notificationsOn) {
-      await scheduleNotifications(time, eveningTime);
+      setOneSignalTags(time, eveningTime);
     }
   };
 
@@ -70,7 +68,7 @@ export function Settings() {
     setEveningTime(time);
     await updateSettings({ evening_reminder_time: time });
     if (notificationsOn) {
-      await scheduleNotifications(morningTime, time);
+      setOneSignalTags(morningTime, time);
     }
   };
 
@@ -154,6 +152,7 @@ export function Settings() {
                   className="px-2 py-1 text-sm border border-stone-200 rounded"
                 />
               </div>
+              <p className="text-xs text-stone-400">Times rounded to nearest hour</p>
             </div>
           )}
         </section>
