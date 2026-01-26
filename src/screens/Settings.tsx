@@ -7,11 +7,6 @@ declare global {
   }
 }
 
-// Round time to nearest hour for tag matching
-function roundToHour(time: string): string {
-  const [hours] = time.split(':');
-  return `${hours.padStart(2, '0')}:00`;
-}
 
 export function Settings() {
   const settings = useSettings();
@@ -31,13 +26,13 @@ export function Settings() {
     }
   }, [settings]);
 
-  // Set OneSignal tags for notification times
+  // Set OneSignal tags for notification times (exact times)
   const setOneSignalTags = (morning: string, evening: string) => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal) => {
       await OneSignal.User.addTags({
-        morning_time: roundToHour(morning),
-        evening_time: roundToHour(evening)
+        morning_time: morning,
+        evening_time: evening
       });
     });
   };
@@ -152,7 +147,6 @@ export function Settings() {
                   className="px-2 py-1 text-sm border border-stone-200 rounded"
                 />
               </div>
-              <p className="text-xs text-stone-400">Times rounded to nearest hour</p>
             </div>
           )}
         </section>

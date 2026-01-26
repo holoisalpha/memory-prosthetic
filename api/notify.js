@@ -1,57 +1,69 @@
-// Daily cron - schedules notifications based on user's tag preferences
+// Daily cron - fetches user's preferred times and schedules exact notifications
 
 const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
 const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjkuefnfn362e5nnfbii6hbmv5ricryseab32jope46ved6gfmgd4rhd6uplspwxqldndz7z7um5jbhq';
 
-// Common notification hours (covers typical morning/evening times)
-const MORNING_HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00'];
-const EVENING_HOURS = ['17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
-
-async function sendScheduledNotification(time, type, content, heading) {
-  return fetch('https://onesignal.com/api/v1/notifications', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${ONESIGNAL_API_KEY}`
-    },
-    body: JSON.stringify({
-      app_id: ONESIGNAL_APP_ID,
-      contents: { en: content },
-      headings: { en: heading },
-      // Only send to users with this specific time tag
-      filters: [
-        { field: 'tag', key: `${type}_time`, relation: '=', value: time }
-      ],
-      url: "https://memory-prosthetic.vercel.app",
-      delayed_option: "timezone",
-      delivery_time_of_day: `${time}:00`
-    })
-  });
-}
-
 export default async function handler(req, res) {
-  const results = { timestamp: new Date().toISOString(), morning: [], evening: [] };
+  const results = { timestamp: new Date().toISOString() };
 
   try {
-    // Schedule morning notifications for each possible time
-    for (const time of MORNING_HOURS) {
-      const r = await sendScheduledNotification(
-        time, 'morning',
-        "What are you grateful for today?",
-        "Morning reflection"
-      );
-      results.morning.push({ time, response: await r.json() });
+    // Get all users to read their time preference tags
+    const usersRes = await fetch(
+      `https://onesignal.com/api/v1/players?app_id=${ONESIGNAL_APP_ID}&limit=10`,
+      {
+        headers: { 'Authorization': `Basic ${ONESIGNAL_API_KEY}` }
+      }
+    );
+    const usersData = await usersRes.json();
+
+    if (!usersData.players || usersData.players.length === 0) {
+      return res.status(200).json({ message: 'No subscribers yet', ...results });
     }
 
-    // Schedule evening notifications for each possible time
-    for (const time of EVENING_HOURS) {
-      const r = await sendScheduledNotification(
-        time, 'evening',
-        "Anything worth remembering from today?",
-        "Evening reflection"
-      );
-      results.evening.push({ time, response: await r.json() });
-    }
+    // Get the user's tags (single user app)
+    const user = usersData.players[0];
+    const morningTime = user.tags?.morning_time || '08:00';
+    const eveningTime = user.tags?.evening_time || '20:00';
+
+    results.user_times = { morning: morningTime, evening: eveningTime };
+
+    // Schedule morning notification at exact time in user's timezone
+    const morningRes = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        contents: { en: "What are you grateful for today?" },
+        headings: { en: "Morning reflection" },
+        included_segments: ["All"],
+        url: "https://memory-prosthetic.vercel.app",
+        delayed_option: "timezone",
+        delivery_time_of_day: `${morningTime}:00`
+      })
+    });
+    results.morning = await morningRes.json();
+
+    // Schedule evening notification at exact time in user's timezone
+    const eveningRes = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        contents: { en: "Anything worth remembering from today?" },
+        headings: { en: "Evening reflection" },
+        included_segments: ["All"],
+        url: "https://memory-prosthetic.vercel.app",
+        delayed_option: "timezone",
+        delivery_time_of_day: `${eveningTime}:00`
+      })
+    });
+    results.evening = await eveningRes.json();
 
     return res.status(200).json(results);
   } catch (error) {
