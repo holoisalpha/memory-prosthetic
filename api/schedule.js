@@ -22,7 +22,7 @@ async function cancelPendingNotifications() {
       const data = await listRes.json();
       // Cancel each scheduled notification
       for (const notif of (data.notifications || [])) {
-        if (notif.id && !notif.completed_at) {
+        if (notif.id && !notif.completed_at && !notif.canceled) {
           await fetch(
             `https://onesignal.com/api/v1/notifications/${notif.id}?app_id=${ONESIGNAL_APP_ID}`,
             {
