@@ -1,6 +1,6 @@
 interface Props {
-  current: 'home' | 'calendar' | 'archive' | 'settings';
-  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'settings') => void;
+  current: 'home' | 'calendar' | 'archive' | 'train' | 'settings';
+  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'train' | 'settings') => void;
 }
 
 export function BottomNav({ current, onNavigate }: Props) {
@@ -8,6 +8,7 @@ export function BottomNav({ current, onNavigate }: Props) {
     { id: 'home' as const, label: 'Today' },
     { id: 'calendar' as const, label: 'Calendar' },
     { id: 'archive' as const, label: 'Archive' },
+    { id: 'train' as const, label: 'Train' },
     { id: 'settings' as const, label: 'Settings' }
   ];
 

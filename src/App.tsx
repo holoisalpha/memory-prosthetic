@@ -7,10 +7,11 @@ import { AddMemory } from './screens/AddMemory';
 import { Calendar } from './screens/Calendar';
 import { DayDetail } from './screens/DayDetail';
 import { Archive } from './screens/Archive';
+import { Train } from './screens/Train';
 import { Settings } from './screens/Settings';
 import type { MemoryEntry } from './lib/types';
 
-type Screen = 'home' | 'calendar' | 'archive' | 'settings';
+type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'settings';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
@@ -89,6 +90,7 @@ export default function App() {
         <Calendar onSelectDate={handleSelectDate} />
       )}
       {screen === 'archive' && <Archive />}
+      {screen === 'train' && <Train />}
       {screen === 'settings' && <Settings />}
 
       <BottomNav current={screen} onNavigate={setScreen} />
