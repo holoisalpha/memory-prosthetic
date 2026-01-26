@@ -9,63 +9,40 @@ export function Settings() {
   const [morningTime, setMorningTime] = useState('08:00');
   const [eveningTime, setEveningTime] = useState('20:00');
   const [resurfacingOn, setResurfacingOn] = useState(false);
-  const [syncing, setSyncing] = useState(false);
 
-  // Load settings from API on mount
-  useEffect(() => {
-    loadRemoteSettings();
-  }, []);
-
-  // Sync from local DB when loaded
+  // Sync from DB when loaded
   useEffect(() => {
     if (settings) {
+      setNotificationsOn(settings.notifications_enabled === true);
+      setMorningTime(settings.morning_reminder_time || '08:00');
+      setEveningTime(settings.evening_reminder_time || '20:00');
       setResurfacingOn(settings.resurfacing_enabled === true);
     }
   }, [settings]);
 
-  const loadRemoteSettings = async () => {
+  const scheduleNotifications = async (enabled: boolean, morning: string, evening: string) => {
     try {
-      const res = await fetch('/api/settings');
-      if (res.ok) {
-        const data = await res.json();
-        setNotificationsOn(data.enabled === true);
-        setMorningTime(data.morning_time || '08:00');
-        setEveningTime(data.evening_time || '20:00');
-      }
-    } catch (err) {
-      console.error('Failed to load remote settings:', err);
-    }
-  };
-
-  const syncToRemote = async (updates: Record<string, unknown>) => {
-    setSyncing(true);
-    try {
-      await fetch('/api/settings', {
+      await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        body: JSON.stringify({
+          enabled,
+          morning_time: morning,
+          evening_time: evening,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
       });
     } catch (err) {
-      console.error('Failed to sync settings:', err);
-    } finally {
-      setSyncing(false);
+      console.error('Failed to schedule notifications:', err);
     }
   };
 
   const toggleNotifications = async () => {
     const newVal = !notificationsOn;
     setNotificationsOn(newVal);
-    await syncToRemote({
-      enabled: newVal,
-      morning_time: morningTime,
-      evening_time: eveningTime,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
-
-    // Also update local DB
     await updateSettings({ notifications_enabled: newVal });
+    await scheduleNotifications(newVal, morningTime, eveningTime);
 
-    // Request browser permission when enabling
     if (newVal && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -73,14 +50,18 @@ export function Settings() {
 
   const updateMorningTime = async (time: string) => {
     setMorningTime(time);
-    await syncToRemote({ morning_time: time });
     await updateSettings({ morning_reminder_time: time });
+    if (notificationsOn) {
+      await scheduleNotifications(true, time, eveningTime);
+    }
   };
 
   const updateEveningTime = async (time: string) => {
     setEveningTime(time);
-    await syncToRemote({ evening_time: time });
     await updateSettings({ evening_reminder_time: time });
+    if (notificationsOn) {
+      await scheduleNotifications(true, morningTime, time);
+    }
   };
 
   const toggleResurfacing = async () => {
@@ -137,8 +118,7 @@ export function Settings() {
             </div>
             <button
               onClick={toggleNotifications}
-              disabled={syncing}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${notificationsOn ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-600'} ${syncing ? 'opacity-50' : ''}`}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${notificationsOn ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-600'}`}
             >
               {notificationsOn ? 'On' : 'Off'}
             </button>
@@ -164,7 +144,6 @@ export function Settings() {
                   className="px-2 py-1 text-sm border border-stone-200 rounded"
                 />
               </div>
-              <p className="text-xs text-stone-400">Times are in your local timezone</p>
             </div>
           )}
         </section>
@@ -189,8 +168,8 @@ export function Settings() {
         <section className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
           <h2 className="font-medium text-stone-900 text-sm">Export data</h2>
           <div className="flex gap-2">
-            <button onClick={handleExportJSON} className="flex-1 py-2 text-sm border border-stone-200 rounded hover:bg-stone-50 transition-colors">JSON</button>
-            <button onClick={handleExportCSV} className="flex-1 py-2 text-sm border border-stone-200 rounded hover:bg-stone-50 transition-colors">CSV</button>
+            <button onClick={handleExportJSON} className="flex-1 py-2 text-sm border border-stone-200 rounded">JSON</button>
+            <button onClick={handleExportCSV} className="flex-1 py-2 text-sm border border-stone-200 rounded">CSV</button>
           </div>
         </section>
 
@@ -198,7 +177,7 @@ export function Settings() {
         <section className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
           <h2 className="font-medium text-stone-900 text-sm">Delete all data</h2>
           {!showDeleteConfirm ? (
-            <button onClick={() => setShowDeleteConfirm(true)} className="py-2 px-4 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50 transition-colors">
+            <button onClick={() => setShowDeleteConfirm(true)} className="py-2 px-4 text-sm text-red-600 border border-red-200 rounded">
               Delete all
             </button>
           ) : (
@@ -211,8 +190,8 @@ export function Settings() {
                 className="w-full px-3 py-2 text-sm border rounded"
               />
               <div className="flex gap-2">
-                <button onClick={() => { setShowDeleteConfirm(false); setDeleteText(''); }} className="flex-1 py-2 text-sm border rounded hover:bg-stone-50 transition-colors">Cancel</button>
-                <button onClick={handleDeleteAll} disabled={deleteText !== 'DELETE'} className={`flex-1 py-2 text-sm rounded transition-colors ${deleteText === 'DELETE' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-stone-100 text-stone-300 cursor-not-allowed'}`}>Confirm</button>
+                <button onClick={() => { setShowDeleteConfirm(false); setDeleteText(''); }} className="flex-1 py-2 text-sm border rounded">Cancel</button>
+                <button onClick={handleDeleteAll} disabled={deleteText !== 'DELETE'} className={`flex-1 py-2 text-sm rounded ${deleteText === 'DELETE' ? 'bg-red-600 text-white' : 'bg-stone-100 text-stone-300'}`}>Confirm</button>
               </div>
             </div>
           )}
