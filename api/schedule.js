@@ -1,7 +1,7 @@
 // Schedule notifications for specific times (called from Settings)
 
-const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
-const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjlmemhknz4xulsf7742eejeihbcbckr3bahommk2noffzs6xvlvzjnjfojkm33ycoxjsjc3sidf3hmq';
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '8e471fe8-3a06-487d-9e90-e705c12f034a';
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
 
 // Cancel all pending/scheduled notifications
 async function cancelPendingNotifications() {
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   // e.g., +300 for EST (UTC-5), +480 for PST (UTC-8)
   const offsetMs = (timezone_offset ?? 300) * 60 * 1000; // Default to EST
 
-  const results = { scheduled: [], cancelled, server_now: new Date().toISOString(), key_hint: ONESIGNAL_API_KEY.slice(-20) };
+  const results = { scheduled: [], cancelled, server_now: new Date().toISOString() };
 
   // Convert local time string to UTC ISO string
   // timezone_offset from browser: positive = west of UTC (e.g., +300 for EST = UTC-5)

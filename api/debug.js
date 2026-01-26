@@ -1,7 +1,7 @@
 // Debug endpoint to check OneSignal v2 API
 
-const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
-const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjlmemhknz4xulsf7742eejeihbcbckr3bahommk2noffzs6xvlvzjnjfojkm33ycoxjsjc3sidf3hmq';
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '8e471fe8-3a06-487d-9e90-e705c12f034a';
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
 
 export default async function handler(req, res) {
   try {
