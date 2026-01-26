@@ -1,54 +1,31 @@
 import { useState } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
-import { requestNotificationPermission, setOptedIn, updateReminderTimes } from '../lib/notifications';
 
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState('');
 
-  const handleToggleNotifications = async () => {
+  const handleToggleNotifications = () => {
     const newValue = !settings?.notifications_enabled;
-    console.log('Toggle notifications:', { current: settings?.notifications_enabled, newValue });
-
-    // Update local settings first (so UI responds immediately)
-    await updateSettings({
+    updateSettings({
       notifications_enabled: newValue,
       morning_reminder_time: settings?.morning_reminder_time || '08:00',
       evening_reminder_time: settings?.evening_reminder_time || '20:00'
     });
 
-    // Then handle OneSignal
-    if (newValue) {
-      try {
-        const granted = await requestNotificationPermission();
-        if (granted) {
-          await setOptedIn(true);
-          await updateReminderTimes(
-            settings?.morning_reminder_time || '08:00',
-            settings?.evening_reminder_time || '20:00'
-          );
-        }
-      } catch (err) {
-        console.error('OneSignal error:', err);
-      }
-    } else {
-      try {
-        await setOptedIn(false);
-      } catch (err) {
-        console.error('OneSignal error:', err);
-      }
+    // Request browser notification permission when enabling
+    if (newValue && 'Notification' in window) {
+      Notification.requestPermission();
     }
   };
 
-  const handleMorningTimeChange = async (time: string) => {
-    await updateSettings({ morning_reminder_time: time });
-    await updateReminderTimes(time, settings?.evening_reminder_time);
+  const handleMorningTimeChange = (time: string) => {
+    updateSettings({ morning_reminder_time: time });
   };
 
-  const handleEveningTimeChange = async (time: string) => {
-    await updateSettings({ evening_reminder_time: time });
-    await updateReminderTimes(settings?.morning_reminder_time, time);
+  const handleEveningTimeChange = (time: string) => {
+    updateSettings({ evening_reminder_time: time });
   };
 
   const handleExportJSON = async () => {
