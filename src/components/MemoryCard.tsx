@@ -25,12 +25,20 @@ interface Props {
 export function MemoryCard({ entry, onEdit, onDelete, showDate }: Props) {
   const editable = isToday(entry.entry_date);
 
+  const timeString = new Date(entry.created_at).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+
   return (
     <article className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
       <header className="flex items-center justify-between">
-        <span className={`text-xs px-2 py-0.5 rounded-full ${typeColors[entry.type]}`}>
-          {typeLabels[entry.type]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full ${typeColors[entry.type]}`}>
+            {typeLabels[entry.type]}
+          </span>
+          <span className="text-xs text-stone-400">{timeString}</span>
+        </div>
         {showDate && (
           <time className="text-xs text-stone-400">
             {new Date(entry.entry_date).toLocaleDateString(undefined, {
