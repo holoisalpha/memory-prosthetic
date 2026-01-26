@@ -7,9 +7,7 @@ export function BottomNav({ current, onNavigate }: Props) {
   const items = [
     { id: 'home' as const, label: 'Today' },
     { id: 'calendar' as const, label: 'Calendar' },
-    { id: 'archive' as const, label: 'Archive' },
-    { id: 'train' as const, label: 'Train' },
-    { id: 'settings' as const, label: 'Settings' }
+    { id: 'archive' as const, label: 'Archive' }
   ];
 
   return (

@@ -84,6 +84,8 @@ export default function App() {
           onAddMemory={handleAddMemory}
           onEditMemory={handleEditMemory}
           onDeleteMemory={handleDeleteMemory}
+          onNavigateToTrain={() => setScreen('train')}
+          onNavigateToSettings={() => setScreen('settings')}
         />
       )}
       {screen === 'calendar' && (
