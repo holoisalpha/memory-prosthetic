@@ -1,7 +1,7 @@
 // Schedule notifications for specific times (called from Settings)
 
 const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
-const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjj6ahdj4tdhurbu2dibwtx7zj5t6a26nvmwyphy44fmgc6sd2bx47dboz5alp3hcn34uq5mcktgvuly';
+const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjkqv2g34avqejdfuera5pxb7ubgob26hmiynjxszd7cspgwgv4t6na6cuxfmkf33bnxzyjr2ggarcci';
 
 // Cancel all pending/scheduled notifications
 async function cancelPendingNotifications() {
