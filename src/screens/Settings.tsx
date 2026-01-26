@@ -1,10 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
+import { requestNotificationPermission, isOptedIn, setOptedIn } from '../lib/notifications';
 
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+
+  useEffect(() => {
+    // Check current notification status
+    setNotificationsEnabled(isOptedIn());
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    setNotificationLoading(true);
+    try {
+      if (!notificationsEnabled) {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          await setOptedIn(true);
+          setNotificationsEnabled(true);
+        }
+      } else {
+        await setOptedIn(false);
+        setNotificationsEnabled(false);
+      }
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
 
   const handleExportJSON = async () => {
     const data = await exportData();
@@ -43,6 +69,34 @@ export function Settings() {
       </header>
 
       <main className="px-4 py-6 space-y-6 max-w-md mx-auto">
+        {/* Notifications */}
+        <section className="bg-white rounded-lg border border-stone-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-medium text-stone-900 text-sm">Gentle reminders</h2>
+              <p className="text-xs text-stone-400 mt-1">
+                Morning gratitude & evening memory prompts
+              </p>
+            </div>
+            <button
+              onClick={handleToggleNotifications}
+              disabled={notificationLoading}
+              className={`
+                w-12 h-6 rounded-full transition-colors relative
+                ${notificationsEnabled ? 'bg-stone-900' : 'bg-stone-200'}
+                ${notificationLoading ? 'opacity-50' : ''}
+              `}
+            >
+              <span
+                className={`
+                  absolute top-1 w-4 h-4 rounded-full bg-white transition-transform
+                  ${notificationsEnabled ? 'left-7' : 'left-1'}
+                `}
+              />
+            </button>
+          </div>
+        </section>
+
         {/* Resurfacing */}
         <section className="bg-white rounded-lg border border-stone-200 p-4">
           <div className="flex items-center justify-between">
