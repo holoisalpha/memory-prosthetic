@@ -1,7 +1,7 @@
 // Daily cron - reads user's time preferences from OneSignal tags and schedules notifications
 
 const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
-const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjkqv2g34avqejdfuera5pxb7ubgob26hmiynjxszd7cspgwgv4t6na6cuxfmkf33bnxzyjr2ggarcci';
+const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjk2732hjyeaedfnltqxxogwvtjqlpbpnl2jts4phwcbsun5u7y6bfanszuvyuadk5fzbjor6x74hcfa';
 
 // Default to ET (UTC-5 = 300 minutes)
 const DEFAULT_TZ_OFFSET = 300;
