@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   // e.g., +300 for EST (UTC-5), +480 for PST (UTC-8)
   const offsetMs = (timezone_offset ?? 300) * 60 * 1000; // Default to EST
 
-  const results = { scheduled: [], cancelled, server_now: new Date().toISOString() };
+  const results = { scheduled: [], cancelled, server_now: new Date().toISOString(), key_hint: ONESIGNAL_API_KEY.slice(-20) };
 
   // Convert local time string to UTC ISO string
   // timezone_offset from browser: positive = west of UTC (e.g., +300 for EST = UTC-5)
