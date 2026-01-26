@@ -1,12 +1,13 @@
 // Vercel Cron Job - Sends reminder notifications via OneSignal
 // Runs every hour, sends notifications at specific ET times
+// Single-user personal app - sends to all subscribers
 
 const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
 const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjkuefnfn362e5nnfbii6hbmv5ricryseab32jope46ved6gfmgd4rhd6uplspwxqldndz7z7um5jbhq';
 
-// Default times in Eastern Time (converted to UTC)
-// 8am ET = 13:00 UTC (EST) or 12:00 UTC (EDT)
-// 8pm ET = 01:00 UTC next day (EST) or 00:00 UTC (EDT)
+// Times in UTC (adjust these based on your timezone)
+// EST: 8am = 13:00 UTC, 8pm = 01:00 UTC next day
+// EDT: 8am = 12:00 UTC, 8pm = 00:00 UTC
 const MORNING_HOUR_UTC = 13; // 8am EST
 const EVENING_HOUR_UTC = 1;  // 8pm EST
 
@@ -17,12 +18,6 @@ export default async function handler(req, res) {
 
   const now = new Date();
   const currentHour = now.getUTCHours();
-  const today = now.toISOString().split('T')[0];
-
-  // For evening notification (which fires after midnight UTC), use yesterday's date for "today" check
-  const yesterday = new Date(now);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
 
   const results = {
     timestamp: now.toISOString(),
@@ -31,7 +26,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Morning gratitude (8am ET)
+    // Morning gratitude reminder (8am ET)
     if (currentHour === MORNING_HOUR_UTC) {
       const response = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
@@ -43,9 +38,7 @@ export default async function handler(req, res) {
           app_id: ONESIGNAL_APP_ID,
           contents: { en: "What are you grateful for today?" },
           headings: { en: "Morning reflection" },
-          filters: [
-            { field: "tag", key: "last_gratitude_date", relation: "!=", value: today }
-          ],
+          included_segments: ["All"],
           url: "https://memory-prosthetic.vercel.app"
         })
       });
@@ -53,7 +46,7 @@ export default async function handler(req, res) {
       results.actions.push('morning_sent');
     }
 
-    // Evening memory (8pm ET)
+    // Evening memory reminder (8pm ET)
     if (currentHour === EVENING_HOUR_UTC) {
       const response = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
@@ -65,12 +58,7 @@ export default async function handler(req, res) {
           app_id: ONESIGNAL_APP_ID,
           contents: { en: "Anything worth remembering from today?" },
           headings: { en: "Evening reflection" },
-          filters: [
-            // Check if they haven't logged today (for evening, "today" in ET is yesterday in UTC)
-            { field: "tag", key: "last_logged_date", relation: "!=", value: yesterdayStr },
-            { operator: "AND" },
-            { field: "tag", key: "last_logged_date", relation: "!=", value: today }
-          ],
+          included_segments: ["All"],
           url: "https://memory-prosthetic.vercel.app"
         })
       });
@@ -88,4 +76,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
-

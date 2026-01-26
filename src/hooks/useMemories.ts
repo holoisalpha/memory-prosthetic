@@ -1,7 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuid } from 'uuid';
 import { db, getLocalDateString, isToday } from '../lib/db';
-import { updateLastLoggedDate, updateGratitudeLogged } from '../lib/notifications';
 import type { MemoryEntry, MemoryType, Tone, Settings } from '../lib/types';
 
 const MAX_ENTRIES_PER_DAY = 3;
@@ -93,12 +92,6 @@ export async function addEntry(
   };
 
   await db.entries.add(entry);
-
-  // Update OneSignal tags for notification targeting
-  updateLastLoggedDate(today);
-  if (type === 'gratitude') {
-    updateGratitudeLogged(today);
-  }
 
   return entry;
 }

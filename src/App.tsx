@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { initSettings } from './lib/db';
-import { initOneSignal } from './lib/notifications';
 import { deleteEntry } from './hooks/useMemories';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './screens/Home';
@@ -19,10 +18,9 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState<MemoryEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Initialize settings and OneSignal on mount
+  // Initialize settings on mount
   useEffect(() => {
     initSettings();
-    initOneSignal();
   }, []);
 
   const handleAddMemory = () => {
