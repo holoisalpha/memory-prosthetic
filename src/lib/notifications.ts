@@ -74,3 +74,29 @@ export async function updateGratitudeLogged(date: string): Promise<void> {
     console.error('Failed to update OneSignal tags:', err);
   }
 }
+
+// Convert local HH:MM to UTC HH:MM
+function localTimeToUTC(localTime: string): string {
+  if (!localTime) return '';
+  const [hours, minutes] = localTime.split(':').map(Number);
+  const now = new Date();
+  now.setHours(hours, minutes, 0, 0);
+  const utcHours = now.getUTCHours();
+  return `${String(utcHours).padStart(2, '0')}:00`;
+}
+
+// Update reminder time preferences (stored in UTC for server-side cron)
+export async function updateReminderTimes(
+  morningTime: string | undefined,
+  eveningTime: string | undefined
+): Promise<void> {
+  try {
+    await OneSignal.User.addTags({
+      morning_reminder: morningTime ? localTimeToUTC(morningTime) : '',
+      evening_reminder: eveningTime ? localTimeToUTC(eveningTime) : '',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+  } catch (err) {
+    console.error('Failed to update reminder times:', err);
+  }
+}

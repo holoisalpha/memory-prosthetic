@@ -23,7 +23,10 @@ export async function initSettings(): Promise<Settings> {
 
   const settings: Settings = {
     id: 'default',
-    resurfacing_enabled: false
+    resurfacing_enabled: false,
+    notifications_enabled: false,
+    morning_reminder_time: '08:00',
+    evening_reminder_time: '20:00'
   };
   await db.settings.put(settings);
   return settings;

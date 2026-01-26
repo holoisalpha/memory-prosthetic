@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
-import { requestNotificationPermission, isOptedIn, setOptedIn } from '../lib/notifications';
+import { requestNotificationPermission, isOptedIn, setOptedIn, updateReminderTimes } from '../lib/notifications';
 
 export function Settings() {
   const settings = useSettings();
@@ -10,7 +10,6 @@ export function Settings() {
   const [notificationLoading, setNotificationLoading] = useState(false);
 
   useEffect(() => {
-    // Check current notification status
     setNotificationsEnabled(isOptedIn());
   }, []);
 
@@ -22,14 +21,34 @@ export function Settings() {
         if (granted) {
           await setOptedIn(true);
           setNotificationsEnabled(true);
+          // Set default times if not already set
+          if (!settings?.morning_reminder_time) {
+            await updateSettings({
+              notifications_enabled: true,
+              morning_reminder_time: '08:00',
+              evening_reminder_time: '20:00'
+            });
+            await updateReminderTimes('08:00', '20:00');
+          }
         }
       } else {
         await setOptedIn(false);
         setNotificationsEnabled(false);
+        await updateSettings({ notifications_enabled: false });
       }
     } finally {
       setNotificationLoading(false);
     }
+  };
+
+  const handleMorningTimeChange = async (time: string) => {
+    await updateSettings({ morning_reminder_time: time });
+    await updateReminderTimes(time, settings?.evening_reminder_time);
+  };
+
+  const handleEveningTimeChange = async (time: string) => {
+    await updateSettings({ evening_reminder_time: time });
+    await updateReminderTimes(settings?.morning_reminder_time, time);
   };
 
   const handleExportJSON = async () => {
@@ -70,7 +89,7 @@ export function Settings() {
 
       <main className="px-4 py-6 space-y-6 max-w-md mx-auto">
         {/* Notifications */}
-        <section className="bg-white rounded-lg border border-stone-200 p-4">
+        <section className="bg-white rounded-lg border border-stone-200 p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-medium text-stone-900 text-sm">Gentle reminders</h2>
@@ -95,6 +114,35 @@ export function Settings() {
               />
             </button>
           </div>
+
+          {notificationsEnabled && (
+            <div className="space-y-3 pt-2 border-t border-stone-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-stone-700">Morning gratitude</p>
+                  <p className="text-xs text-stone-400">If you haven't logged gratitude</p>
+                </div>
+                <input
+                  type="time"
+                  value={settings?.morning_reminder_time || '08:00'}
+                  onChange={(e) => handleMorningTimeChange(e.target.value)}
+                  className="px-2 py-1 text-sm border border-stone-200 rounded-lg bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-stone-700">Evening memory</p>
+                  <p className="text-xs text-stone-400">If you haven't logged anything</p>
+                </div>
+                <input
+                  type="time"
+                  value={settings?.evening_reminder_time || '20:00'}
+                  onChange={(e) => handleEveningTimeChange(e.target.value)}
+                  className="px-2 py-1 text-sm border border-stone-200 rounded-lg bg-white"
+                />
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Resurfacing */}

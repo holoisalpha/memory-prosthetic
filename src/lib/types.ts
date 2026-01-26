@@ -23,6 +23,9 @@ export interface Settings {
   id: string;
   resurfacing_enabled: boolean;
   last_resurfaced_date?: string;
+  notifications_enabled: boolean;
+  morning_reminder_time?: string;  // HH:MM format, e.g. "08:00"
+  evening_reminder_time?: string;  // HH:MM format, e.g. "20:00"
 }
 
 export interface Prompt {
