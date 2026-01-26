@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
 
+declare global {
+  interface Window {
+    OneSignalDeferred?: Array<(oneSignal: any) => void>;
+  }
+}
+
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -20,13 +26,13 @@ export function Settings() {
     }
   }, [settings]);
 
-  const scheduleNotifications = async (enabled: boolean, morning: string, evening: string) => {
+  const scheduleNotifications = async (morning: string, evening: string) => {
     try {
       await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          enabled,
+          enabled: true,
           morning_time: morning,
           evening_time: evening,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -41,18 +47,22 @@ export function Settings() {
     const newVal = !notificationsOn;
     setNotificationsOn(newVal);
     await updateSettings({ notifications_enabled: newVal });
-    await scheduleNotifications(newVal, morningTime, eveningTime);
 
-    if (newVal && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    // Use OneSignal to opt in/out
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      if (newVal) {
+        await OneSignal.Notifications.requestPermission();
+        await scheduleNotifications(morningTime, eveningTime);
+      }
+    });
   };
 
   const updateMorningTime = async (time: string) => {
     setMorningTime(time);
     await updateSettings({ morning_reminder_time: time });
     if (notificationsOn) {
-      await scheduleNotifications(true, time, eveningTime);
+      await scheduleNotifications(time, eveningTime);
     }
   };
 
@@ -60,7 +70,7 @@ export function Settings() {
     setEveningTime(time);
     await updateSettings({ evening_reminder_time: time });
     if (notificationsOn) {
-      await scheduleNotifications(true, morningTime, time);
+      await scheduleNotifications(morningTime, time);
     }
   };
 
