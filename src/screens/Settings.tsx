@@ -7,7 +7,6 @@ declare global {
   }
 }
 
-
 export function Settings() {
   const settings = useSettings();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -16,6 +15,7 @@ export function Settings() {
   const [morningTime, setMorningTime] = useState('08:00');
   const [eveningTime, setEveningTime] = useState('20:00');
   const [resurfacingOn, setResurfacingOn] = useState(false);
+  const [scheduleStatus, setScheduleStatus] = useState('');
 
   useEffect(() => {
     if (settings) {
@@ -26,15 +26,42 @@ export function Settings() {
     }
   }, [settings]);
 
-  // Set OneSignal tags for notification times (exact times)
-  const setOneSignalTags = (morning: string, evening: string) => {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      await OneSignal.User.addTags({
-        morning_time: morning,
-        evening_time: evening
+  // Schedule notifications via API
+  const scheduleNotifications = async (morning: string, evening: string) => {
+    setScheduleStatus('Scheduling...');
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          morning_time: morning,
+          evening_time: evening,
+          timezone_offset: new Date().getTimezoneOffset()
+        })
       });
-    });
+      const data = await res.json();
+      if (res.ok) {
+        setScheduleStatus('Scheduled!');
+        setTimeout(() => setScheduleStatus(''), 2000);
+      } else {
+        setScheduleStatus('Error: ' + (data.error || 'Failed'));
+      }
+    } catch (err) {
+      console.error('Failed to schedule:', err);
+      setScheduleStatus('Error scheduling');
+    }
+  };
+
+  const cancelNotifications = async () => {
+    try {
+      await fetch('/api/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancel_only: true })
+      });
+    } catch (err) {
+      console.error('Failed to cancel notifications:', err);
+    }
   };
 
   const toggleNotifications = async () => {
@@ -42,20 +69,28 @@ export function Settings() {
     setNotificationsOn(newVal);
     await updateSettings({ notifications_enabled: newVal });
 
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      if (newVal) {
+    if (newVal) {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
         await OneSignal.Notifications.requestPermission();
-        setOneSignalTags(morningTime, eveningTime);
-      }
-    });
+        // Schedule notifications for today
+        await scheduleNotifications(morningTime, eveningTime);
+      });
+    } else {
+      // Cancel all pending notifications when turning off
+      await cancelNotifications();
+    }
   };
 
   const updateMorningTime = async (time: string) => {
     setMorningTime(time);
     await updateSettings({ morning_reminder_time: time });
     if (notificationsOn) {
-      setOneSignalTags(time, eveningTime);
+      // Save to OneSignal tags for daily cron
+      window.OneSignalDeferred?.push(async (OneSignal) => {
+        await OneSignal.User.addTags({ morning_time: time });
+      });
+      await scheduleNotifications(time, eveningTime);
     }
   };
 
@@ -63,7 +98,11 @@ export function Settings() {
     setEveningTime(time);
     await updateSettings({ evening_reminder_time: time });
     if (notificationsOn) {
-      setOneSignalTags(morningTime, time);
+      // Save to OneSignal tags for daily cron
+      window.OneSignalDeferred?.push(async (OneSignal) => {
+        await OneSignal.User.addTags({ evening_time: time });
+      });
+      await scheduleNotifications(morningTime, time);
     }
   };
 
@@ -147,6 +186,11 @@ export function Settings() {
                   className="px-2 py-1 text-sm border border-stone-200 rounded"
                 />
               </div>
+              {scheduleStatus && (
+                <p className={`text-xs ${scheduleStatus.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+                  {scheduleStatus}
+                </p>
+              )}
             </div>
           )}
         </section>

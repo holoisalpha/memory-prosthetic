@@ -1,38 +1,69 @@
-// Daily cron - fetches user's preferred times and schedules exact notifications
+// Daily cron - reads user's time preferences from OneSignal tags and schedules notifications
 
 const ONESIGNAL_APP_ID = '8e471fe8-3a06-487d-9e90-e705c12f034a';
-const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjkuefnfn362e5nnfbii6hbmv5ricryseab32jope46ved6gfmgd4rhd6uplspwxqldndz7z7um5jbhq';
+const ONESIGNAL_API_KEY = 'os_v2_app_rzdr72b2azeh3huq44c4clydjj6ahdj4tdhurbu2dibwtx7zj5t6a26nvmwyphy44fmgc6sd2bx47dboz5alp3hcn34uq5mcktgvuly';
+
+// Default to ET (UTC-5 = 300 minutes)
+const DEFAULT_TZ_OFFSET = 300;
+
+function toUTCTimestamp(timeStr, offsetMinutes) {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const offsetMs = offsetMinutes * 60 * 1000;
+
+  const now = new Date();
+  const userNow = new Date(now.getTime() - offsetMs);
+
+  const target = new Date(userNow);
+  target.setUTCHours(hours, minutes, 0, 0);
+
+  if (target <= userNow) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+
+  const utcTarget = new Date(target.getTime() + offsetMs);
+  return utcTarget.toISOString();
+}
 
 export default async function handler(req, res) {
   const results = { timestamp: new Date().toISOString() };
 
   try {
-    // Get all users to read their time preference tags
+    // Try to get user's tags from OneSignal
+    let morningTime = '08:00';
+    let eveningTime = '20:00';
+
+    // Fetch users to get their tags
     const usersRes = await fetch(
-      `https://onesignal.com/api/v1/players?app_id=${ONESIGNAL_APP_ID}&limit=10`,
+      `https://onesignal.com/api/v1/players?app_id=${ONESIGNAL_APP_ID}&limit=1`,
       {
-        headers: { 'Authorization': `Basic ${ONESIGNAL_API_KEY}` }
+        headers: {
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
-    const usersData = await usersRes.json();
 
-    if (!usersData.players || usersData.players.length === 0) {
-      return res.status(200).json({ message: 'No subscribers yet', ...results });
+    if (usersRes.ok) {
+      const usersData = await usersRes.json();
+      if (usersData.players && usersData.players.length > 0) {
+        const user = usersData.players[0];
+        if (user.tags?.morning_time) morningTime = user.tags.morning_time;
+        if (user.tags?.evening_time) eveningTime = user.tags.evening_time;
+        results.found_tags = { morning: morningTime, evening: eveningTime };
+      }
+    } else {
+      results.tag_fetch_error = await usersRes.text();
     }
 
-    // Get the user's tags (single user app)
-    const user = usersData.players[0];
-    const morningTime = user.tags?.morning_time || '08:00';
-    const eveningTime = user.tags?.evening_time || '20:00';
+    results.using_times = { morning: morningTime, evening: eveningTime };
 
-    results.user_times = { morning: morningTime, evening: eveningTime };
-
-    // Schedule morning notification at exact time in user's timezone
-    const morningRes = await fetch('https://onesignal.com/api/v1/notifications', {
+    // Schedule morning notification
+    const morningSendAt = toUTCTimestamp(morningTime, DEFAULT_TZ_OFFSET);
+    const morningRes = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+        'Authorization': `Key ${ONESIGNAL_API_KEY}`
       },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
@@ -40,18 +71,19 @@ export default async function handler(req, res) {
         headings: { en: "Morning reflection" },
         included_segments: ["All"],
         url: "https://memory-prosthetic.vercel.app",
-        delayed_option: "timezone",
-        delivery_time_of_day: `${morningTime}:00`
+        send_after: morningSendAt
       })
     });
     results.morning = await morningRes.json();
+    results.morning_send_at = morningSendAt;
 
-    // Schedule evening notification at exact time in user's timezone
-    const eveningRes = await fetch('https://onesignal.com/api/v1/notifications', {
+    // Schedule evening notification
+    const eveningSendAt = toUTCTimestamp(eveningTime, DEFAULT_TZ_OFFSET);
+    const eveningRes = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+        'Authorization': `Key ${ONESIGNAL_API_KEY}`
       },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
@@ -59,11 +91,11 @@ export default async function handler(req, res) {
         headings: { en: "Evening reflection" },
         included_segments: ["All"],
         url: "https://memory-prosthetic.vercel.app",
-        delayed_option: "timezone",
-        delivery_time_of_day: `${eveningTime}:00`
+        send_after: eveningSendAt
       })
     });
     results.evening = await eveningRes.json();
+    results.evening_send_at = eveningSendAt;
 
     return res.status(200).json(results);
   } catch (error) {
