@@ -142,7 +142,14 @@ export async function deleteEntry(id: string): Promise<boolean> {
 // Update settings
 export async function updateSettings(updates: Partial<Settings>): Promise<void> {
   const existing = await db.settings.get('default');
-  const merged = { ...existing, ...updates, id: 'default' };
+  const defaults: Settings = {
+    id: 'default',
+    resurfacing_enabled: false,
+    notifications_enabled: false,
+    morning_reminder_time: '08:00',
+    evening_reminder_time: '20:00'
+  };
+  const merged: Settings = { ...defaults, ...existing, ...updates };
   await db.settings.put(merged);
 }
 
