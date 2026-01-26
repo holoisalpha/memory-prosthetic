@@ -16,7 +16,7 @@ function getToneColor(entries: MemoryEntry[]): string {
 
   if (hasLight && hasHeavy) return 'bg-stone-400';
   if (hasLight) return 'bg-amber-400';
-  if (hasHeavy) return 'bg-slate-500';
+  if (hasHeavy) return 'bg-emerald-400';
   return 'bg-stone-400';
 }
 
@@ -157,7 +157,7 @@ export function Calendar({ onSelectDate }: Props) {
             <span>Neutral</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-slate-500" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400" />
             <span>Heavy</span>
           </div>
         </div>

@@ -11,6 +11,8 @@ export interface MemoryEntry {
   content: string;         // max 240 characters
   tone: Tone;
   photo_url?: string;      // optional, max 1 per day
+  highlighted?: boolean;   // marked as a core memory / highlight
+  is_standalone_highlight?: boolean; // bypasses daily limits, for past life events
 }
 
 export interface DayData {
@@ -32,4 +34,12 @@ export interface Prompt {
   id: string;
   text: string;
   type?: MemoryType;       // optional suggested type
+}
+
+export interface BucketItem {
+  id: string;
+  content: string;         // max 240 characters
+  completed: boolean;
+  created_at: string;      // ISO timestamp
+  completed_at?: string;   // ISO timestamp when completed
 }

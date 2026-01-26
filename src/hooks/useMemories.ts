@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuid } from 'uuid';
 import { db, getLocalDateString, isToday } from '../lib/db';
-import type { MemoryEntry, MemoryType, Tone, Settings } from '../lib/types';
+import type { MemoryEntry, MemoryType, Tone, Settings, BucketItem } from '../lib/types';
 
 const MAX_ENTRIES_PER_DAY = 3;
 const MAX_GRATITUDE_PER_DAY = 1;
@@ -207,4 +207,97 @@ export async function exportCSV(): Promise<string> {
 export async function deleteAllData(): Promise<void> {
   await db.entries.clear();
   await db.settings.clear();
+}
+
+// Toggle highlight status on an entry
+export async function toggleHighlight(id: string): Promise<boolean> {
+  const entry = await db.entries.get(id);
+  if (!entry) return false;
+
+  await db.entries.update(id, { highlighted: !entry.highlighted });
+  return true;
+}
+
+// Get all highlighted entries
+export function useHighlightedEntries() {
+  return useLiveQuery(
+    () => db.entries.filter(e => e.highlighted === true).sortBy('entry_date')
+  );
+}
+
+// Add a standalone highlight (bypasses daily limits, for past life events)
+export async function addStandaloneHighlight(
+  content: string,
+  entryDate: string, // YYYY-MM-DD for the event date
+  type: MemoryType = 'moment',
+  tone: Tone = 'neutral',
+  photoUrl?: string
+): Promise<MemoryEntry | { error: string }> {
+  if (content.length > MAX_CONTENT_LENGTH) {
+    return { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` };
+  }
+
+  const entry: MemoryEntry = {
+    id: uuid(),
+    created_at: new Date().toISOString(),
+    entry_date: entryDate,
+    type,
+    content: content.trim(),
+    tone,
+    photo_url: photoUrl,
+    highlighted: true,
+    is_standalone_highlight: true
+  };
+
+  await db.entries.add(entry);
+  return entry;
+}
+
+// ============ Bucket List Functions ============
+
+// Get all bucket list items
+export function useBucketList() {
+  return useLiveQuery(
+    () => db.bucket.orderBy('created_at').toArray()
+  );
+}
+
+// Add a bucket list item
+export async function addBucketItem(content: string): Promise<BucketItem> {
+  const item: BucketItem = {
+    id: uuid(),
+    content: content.trim(),
+    completed: false,
+    created_at: new Date().toISOString()
+  };
+
+  await db.bucket.add(item);
+  return item;
+}
+
+// Toggle bucket item completion
+export async function toggleBucketItem(id: string): Promise<boolean> {
+  const item = await db.bucket.get(id);
+  if (!item) return false;
+
+  await db.bucket.update(id, {
+    completed: !item.completed,
+    completed_at: !item.completed ? new Date().toISOString() : undefined
+  });
+  return true;
+}
+
+// Delete a bucket list item
+export async function deleteBucketItem(id: string): Promise<boolean> {
+  await db.bucket.delete(id);
+  return true;
+}
+
+// Update bucket item content
+export async function updateBucketItem(id: string, content: string): Promise<boolean> {
+  const item = await db.bucket.get(id);
+  if (!item) return false;
+
+  await db.bucket.update(id, { content: content.trim() });
+  return true;
 }

@@ -1,15 +1,21 @@
 import Dexie, { type Table } from 'dexie';
-import type { MemoryEntry, Settings } from './types';
+import type { MemoryEntry, Settings, BucketItem } from './types';
 
 class MemoryDatabase extends Dexie {
   entries!: Table<MemoryEntry>;
   settings!: Table<Settings>;
+  bucket!: Table<BucketItem>;
 
   constructor() {
     super('memory-prosthetic');
     this.version(1).stores({
       entries: 'id, entry_date, type, tone, created_at',
       settings: 'id'
+    });
+    this.version(2).stores({
+      entries: 'id, entry_date, type, tone, created_at',
+      settings: 'id',
+      bucket: 'id, completed, created_at'
     });
   }
 }

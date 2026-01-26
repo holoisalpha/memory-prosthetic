@@ -1,13 +1,14 @@
 interface Props {
-  current: 'home' | 'calendar' | 'archive' | 'train' | 'settings';
-  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'train' | 'settings') => void;
+  current: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
+  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings') => void;
 }
 
 export function BottomNav({ current, onNavigate }: Props) {
   const items = [
     { id: 'home' as const, label: 'Today' },
     { id: 'calendar' as const, label: 'Calendar' },
-    { id: 'archive' as const, label: 'Archive' }
+    { id: 'archive' as const, label: 'Archive' },
+    { id: 'train' as const, label: 'Train' }
   ];
 
   return (

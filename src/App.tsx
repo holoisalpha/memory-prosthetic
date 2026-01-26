@@ -8,10 +8,12 @@ import { Calendar } from './screens/Calendar';
 import { DayDetail } from './screens/DayDetail';
 import { Archive } from './screens/Archive';
 import { Train } from './screens/Train';
+import { Highlights } from './screens/Highlights';
+import { Bucket } from './screens/Bucket';
 import { Settings } from './screens/Settings';
 import type { MemoryEntry } from './lib/types';
 
-type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'settings';
+type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
@@ -84,7 +86,8 @@ export default function App() {
           onAddMemory={handleAddMemory}
           onEditMemory={handleEditMemory}
           onDeleteMemory={handleDeleteMemory}
-          onNavigateToTrain={() => setScreen('train')}
+          onNavigateToBucket={() => setScreen('bucket')}
+          onNavigateToHighlights={() => setScreen('highlights')}
           onNavigateToSettings={() => setScreen('settings')}
         />
       )}
@@ -93,6 +96,8 @@ export default function App() {
       )}
       {screen === 'archive' && <Archive />}
       {screen === 'train' && <Train />}
+      {screen === 'highlights' && <Highlights onBack={() => setScreen('home')} />}
+      {screen === 'bucket' && <Bucket onBack={() => setScreen('home')} />}
       {screen === 'settings' && <Settings />}
 
       <BottomNav current={screen} onNavigate={setScreen} />
