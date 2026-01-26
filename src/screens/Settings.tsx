@@ -6,25 +6,81 @@ export function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [notificationsOn, setNotificationsOn] = useState(false);
+  const [morningTime, setMorningTime] = useState('08:00');
+  const [eveningTime, setEveningTime] = useState('20:00');
   const [resurfacingOn, setResurfacingOn] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
-  // Sync from DB when loaded
+  // Load settings from API on mount
+  useEffect(() => {
+    loadRemoteSettings();
+  }, []);
+
+  // Sync from local DB when loaded
   useEffect(() => {
     if (settings) {
-      setNotificationsOn(settings.notifications_enabled === true);
       setResurfacingOn(settings.resurfacing_enabled === true);
     }
   }, [settings]);
 
+  const loadRemoteSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationsOn(data.enabled === true);
+        setMorningTime(data.morning_time || '08:00');
+        setEveningTime(data.evening_time || '20:00');
+      }
+    } catch (err) {
+      console.error('Failed to load remote settings:', err);
+    }
+  };
+
+  const syncToRemote = async (updates: Record<string, unknown>) => {
+    setSyncing(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (err) {
+      console.error('Failed to sync settings:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const toggleNotifications = async () => {
     const newVal = !notificationsOn;
     setNotificationsOn(newVal);
+    await syncToRemote({
+      enabled: newVal,
+      morning_time: morningTime,
+      evening_time: eveningTime,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+
+    // Also update local DB
     await updateSettings({ notifications_enabled: newVal });
 
     // Request browser permission when enabling
     if (newVal && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
+  };
+
+  const updateMorningTime = async (time: string) => {
+    setMorningTime(time);
+    await syncToRemote({ morning_time: time });
+    await updateSettings({ morning_reminder_time: time });
+  };
+
+  const updateEveningTime = async (time: string) => {
+    setEveningTime(time);
+    await syncToRemote({ evening_time: time });
+    await updateSettings({ evening_reminder_time: time });
   };
 
   const toggleResurfacing = async () => {
@@ -77,15 +133,40 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-medium text-stone-900 text-sm">Gentle reminders</h2>
-              <p className="text-xs text-stone-400 mt-1">8am gratitude, 8pm memory (ET)</p>
+              <p className="text-xs text-stone-400 mt-1">Morning gratitude & evening memory</p>
             </div>
             <button
               onClick={toggleNotifications}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${notificationsOn ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-600'}`}
+              disabled={syncing}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${notificationsOn ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-600'} ${syncing ? 'opacity-50' : ''}`}
             >
               {notificationsOn ? 'On' : 'Off'}
             </button>
           </div>
+
+          {notificationsOn && (
+            <div className="space-y-3 pt-3 border-t border-stone-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-stone-700">Morning</span>
+                <input
+                  type="time"
+                  value={morningTime}
+                  onChange={(e) => updateMorningTime(e.target.value)}
+                  className="px-2 py-1 text-sm border border-stone-200 rounded"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-stone-700">Evening</span>
+                <input
+                  type="time"
+                  value={eveningTime}
+                  onChange={(e) => updateEveningTime(e.target.value)}
+                  className="px-2 py-1 text-sm border border-stone-200 rounded"
+                />
+              </div>
+              <p className="text-xs text-stone-400">Times are in your local timezone</p>
+            </div>
+          )}
         </section>
 
         {/* Resurfacing */}
