@@ -78,18 +78,26 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
         {entry.content}
       </p>
 
-      {entry.photo_urls && entry.photo_urls.length > 0 && (
-        <div className={`grid gap-2 ${entry.photo_urls.length === 1 ? 'grid-cols-1' : entry.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-          {entry.photo_urls.map((url, index) => (
-            <img
-              key={index}
-              src={url}
-              alt=""
-              className={`w-full rounded-md object-cover ${entry.photo_urls!.length === 1 ? 'max-h-48' : 'aspect-square'}`}
-            />
-          ))}
-        </div>
-      )}
+      {/* Support both photo_urls (new) and photo_url (legacy) */}
+      {(entry.photo_urls && entry.photo_urls.length > 0) || entry.photo_url ? (() => {
+        const photos = entry.photo_urls && entry.photo_urls.length > 0
+          ? entry.photo_urls
+          : entry.photo_url
+            ? [entry.photo_url]
+            : [];
+        return photos.length > 0 ? (
+          <div className={`grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {photos.map((url, index) => (
+              <img
+                key={index}
+                src={url}
+                alt=""
+                className={`w-full rounded-md object-cover ${photos.length === 1 ? 'max-h-48' : 'aspect-square'}`}
+              />
+            ))}
+          </div>
+        ) : null;
+      })() : null}
 
       {editable && (onEdit || onDelete) && (
         <footer className="flex gap-3 pt-2 border-t border-stone-100">

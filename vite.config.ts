@@ -37,7 +37,7 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         // Force new cache on every build
-        cacheId: 'memory-v2'
+        cacheId: 'memory-v3'
       }
     })
   ],

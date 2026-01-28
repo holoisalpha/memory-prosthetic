@@ -17,6 +17,7 @@ export function Highlights({ onBack }: Props) {
   const [content, setContent] = useState('');
   const [entryDate, setEntryDate] = useState('');
   const [type, setType] = useState<MemoryType>('moment');
+  // Form always starts empty for new highlights
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

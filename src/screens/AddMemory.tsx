@@ -17,7 +17,10 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   const [type, setType] = useState<MemoryType>(editingEntry?.type ?? 'moment');
   const [content, setContent] = useState(editingEntry?.content ?? '');
   const [tone, setTone] = useState<Tone>(editingEntry?.tone ?? 'neutral');
-  const [photoUrls, setPhotoUrls] = useState<string[]>(editingEntry?.photo_urls ?? []);
+  // Support both photo_urls (new) and photo_url (legacy)
+  const [photoUrls, setPhotoUrls] = useState<string[]>(
+    editingEntry?.photo_urls ?? (editingEntry?.photo_url ? [editingEntry.photo_url] : [])
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

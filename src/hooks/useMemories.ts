@@ -32,9 +32,17 @@ export function useEntriesForMonth(yearMonth: string) {
   );
 }
 
-// Get all entries (for archive/export) - sorted chronologically by entry_date
+// Get all entries (for archive/export) - sorted chronologically by entry_date, then by created_at
 export function useAllEntries() {
-  return useLiveQuery(() => db.entries.orderBy('entry_date').reverse().toArray());
+  return useLiveQuery(async () => {
+    const entries = await db.entries.toArray();
+    // Sort by entry_date (newest first), then by created_at (newest first) within same date
+    return entries.sort((a, b) => {
+      const dateCompare = b.entry_date.localeCompare(a.entry_date);
+      if (dateCompare !== 0) return dateCompare;
+      return b.created_at.localeCompare(a.created_at);
+    });
+  });
 }
 
 // Get settings
