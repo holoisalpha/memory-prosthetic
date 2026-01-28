@@ -1,39 +1,46 @@
-// Debug endpoint to check OneSignal v2 API
+// Debug endpoint to check OneSignal status
 
 const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '8e471fe8-3a06-487d-9e90-e705c12f034a';
 const ONESIGNAL_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
 
 export default async function handler(req, res) {
+  const results = {};
+
   try {
-    // Try sending a test notification directly
-    const notifyRes = await fetch('https://api.onesignal.com/notifications', {
-      method: 'POST',
+    // Check app info and subscriber count
+    const appRes = await fetch(`https://onesignal.com/api/v1/apps/${ONESIGNAL_APP_ID}`, {
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Key ${ONESIGNAL_API_KEY}`
-      },
-      body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        contents: { en: "Test notification" },
-        headings: { en: "Test" },
-        included_segments: ["All"],
-        url: "https://memory-prosthetic.vercel.app"
-      })
+        'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
+      }
     });
+    const appData = await appRes.json();
+    results.app = {
+      name: appData.name,
+      players: appData.players, // total subscribers
+      messageable_players: appData.messageable_players, // can receive messages
+    };
 
-    const text = await notifyRes.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
+    // List recent notifications
+    const notifsRes = await fetch(
+      `https://onesignal.com/api/v1/notifications?app_id=${ONESIGNAL_APP_ID}&limit=5`,
+      {
+        headers: {
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
+        }
+      }
+    );
+    const notifsData = await notifsRes.json();
+    results.recent_notifications = (notifsData.notifications || []).map(n => ({
+      id: n.id,
+      headings: n.headings,
+      successful: n.successful,
+      failed: n.failed,
+      send_after: n.send_after,
+      completed_at: n.completed_at,
+    }));
 
-    return res.status(200).json({
-      status: notifyRes.status,
-      data
-    });
+    return res.status(200).json(results);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, results });
   }
 }
