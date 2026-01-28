@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSettings, updateSettings, exportData, exportCSV, deleteAllData } from '../hooks/useMemories';
+import { useState, useEffect, useRef } from 'react';
+import { useSettings, updateSettings, exportData, exportCSV, importData, deleteAllData } from '../hooks/useMemories';
 
 declare global {
   interface Window {
@@ -16,6 +16,8 @@ export function Settings() {
   const [eveningTime, setEveningTime] = useState('20:00');
   const [resurfacingOn, setResurfacingOn] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState('');
+  const [importStatus, setImportStatus] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (settings) {
@@ -66,19 +68,33 @@ export function Settings() {
 
   const toggleNotifications = async () => {
     const newVal = !notificationsOn;
-    setNotificationsOn(newVal);
-    await updateSettings({ notifications_enabled: newVal });
 
     if (newVal) {
+      setScheduleStatus('Requesting permission...');
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async (OneSignal) => {
-        await OneSignal.Notifications.requestPermission();
-        // Schedule notifications for today
-        await scheduleNotifications(morningTime, eveningTime);
+        try {
+          const permission = await OneSignal.Notifications.requestPermission();
+          if (permission) {
+            setNotificationsOn(true);
+            await updateSettings({ notifications_enabled: true });
+            // Schedule notifications for today
+            await scheduleNotifications(morningTime, eveningTime);
+          } else {
+            setScheduleStatus('Permission denied');
+            setTimeout(() => setScheduleStatus(''), 3000);
+          }
+        } catch (err) {
+          console.error('OneSignal error:', err);
+          setScheduleStatus('Error: ' + (err instanceof Error ? err.message : 'Unknown'));
+        }
       });
     } else {
+      setNotificationsOn(false);
+      await updateSettings({ notifications_enabled: false });
       // Cancel all pending notifications when turning off
       await cancelNotifications();
+      setScheduleStatus('');
     }
   };
 
@@ -132,6 +148,30 @@ export function Settings() {
     a.download = `memory-prosthetic-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportStatus('Importing...');
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+      const result = await importData(content);
+      if (result.error) {
+        setImportStatus(`Error: ${result.error}`);
+      } else {
+        setImportStatus(`Imported ${result.entries} memories, ${result.bucket} bucket items`);
+        setTimeout(() => setImportStatus(''), 3000);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDeleteAll = async () => {
@@ -214,10 +254,35 @@ export function Settings() {
         {/* Export */}
         <section className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
           <h2 className="font-medium text-stone-900 text-sm">Export data</h2>
+          <p className="text-xs text-stone-400">Back up your memories regularly</p>
           <div className="flex gap-2">
             <button onClick={handleExportJSON} className="flex-1 py-2 text-sm border border-stone-200 rounded">JSON</button>
             <button onClick={handleExportCSV} className="flex-1 py-2 text-sm border border-stone-200 rounded">CSV</button>
           </div>
+        </section>
+
+        {/* Import */}
+        <section className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
+          <h2 className="font-medium text-stone-900 text-sm">Import data</h2>
+          <p className="text-xs text-stone-400">Restore from a JSON backup</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full py-2 text-sm border border-stone-200 rounded"
+          >
+            Choose JSON file
+          </button>
+          {importStatus && (
+            <p className={`text-xs ${importStatus.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+              {importStatus}
+            </p>
+          )}
         </section>
 
         {/* Delete */}

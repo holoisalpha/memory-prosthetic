@@ -6,17 +6,10 @@ interface Props {
   onSelectDate: (date: string) => void;
 }
 
-// Get tone color for calendar dot
-function getToneColor(entries: MemoryEntry[]): string {
-  if (entries.length === 0) return '';
-
-  const tones = entries.map(e => e.tone);
-  const hasLight = tones.includes('light');
-  const hasHeavy = tones.includes('heavy');
-
-  if (hasLight && hasHeavy) return 'bg-stone-400';
-  if (hasLight) return 'bg-amber-400';
-  if (hasHeavy) return 'bg-emerald-400';
+// Get tone color for a single entry
+function getToneColor(tone: string): string {
+  if (tone === 'light') return 'bg-amber-400';
+  if (tone === 'heavy') return 'bg-emerald-400';
   return 'bg-stone-400';
 }
 
@@ -133,10 +126,10 @@ export function Calendar({ onSelectDate }: Props) {
                 </span>
                 {hasEntries && (
                   <div className="flex gap-0.5">
-                    {dayEntries.slice(0, 3).map((_, j) => (
+                    {dayEntries.slice(0, 3).map((entry, j) => (
                       <div
                         key={j}
-                        className={`w-1 h-1 rounded-full ${getToneColor(dayEntries)}`}
+                        className={`w-1 h-1 rounded-full ${getToneColor(entry.tone)}`}
                       />
                     ))}
                   </div>

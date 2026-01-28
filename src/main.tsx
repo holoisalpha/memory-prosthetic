@@ -15,7 +15,10 @@ window.OneSignalDeferred.push(async function(OneSignal) {
   await OneSignal.init({
     appId: "8e471fe8-3a06-487d-9e90-e705c12f034a",
     allowLocalhostAsSecureOrigin: true,
+    serviceWorkerParam: { scope: '/' },
+    notifyButton: { enable: false },
   });
+  console.log('OneSignal initialized');
 });
 
 createRoot(document.getElementById('root')!).render(

@@ -48,6 +48,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST only' });
   }
 
+  if (!ONESIGNAL_API_KEY) {
+    return res.status(500).json({ error: 'ONESIGNAL_REST_API_KEY not configured' });
+  }
+
   const { morning_time, evening_time, timezone_offset, cancel_only } = req.body;
 
   // Cancel any existing scheduled notifications first
