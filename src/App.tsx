@@ -96,7 +96,13 @@ export default function App() {
       )}
       {screen === 'archive' && <Archive />}
       {screen === 'train' && <Train />}
-      {screen === 'highlights' && <Highlights onBack={() => setScreen('home')} />}
+      {screen === 'highlights' && (
+        <Highlights
+          onBack={() => setScreen('home')}
+          onEditMemory={handleEditMemory}
+          onDeleteMemory={handleDeleteMemory}
+        />
+      )}
       {screen === 'bucket' && <Bucket onBack={() => setScreen('home')} />}
       {screen === 'settings' && <Settings />}
 

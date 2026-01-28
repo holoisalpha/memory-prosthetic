@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuid } from 'uuid';
-import { db, getLocalDateString, isToday } from '../lib/db';
+import { db, getLocalDateString } from '../lib/db';
 import type { MemoryEntry, MemoryType, Tone, Settings, BucketItem } from '../lib/types';
 
 const MAX_ENTRIES_PER_DAY = 3;
@@ -104,14 +104,13 @@ export async function addEntry(
   return entry;
 }
 
-// Update an entry (only if still today)
+// Update an entry
 export async function updateEntry(
   id: string,
   updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls'>>
 ): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
-  if (!isToday(entry.entry_date)) return false;
 
   if (updates.content && updates.content.length > MAX_CONTENT_LENGTH) {
     return false;
@@ -135,11 +134,10 @@ export async function updateEntry(
   return true;
 }
 
-// Delete an entry (only if still today)
+// Delete an entry
 export async function deleteEntry(id: string): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
-  if (!isToday(entry.entry_date)) return false;
 
   await db.entries.delete(id);
   return true;

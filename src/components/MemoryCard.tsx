@@ -1,5 +1,4 @@
 import type { MemoryEntry, MemoryType } from '../lib/types';
-import { isToday } from '../lib/db';
 import { toggleHighlight } from '../hooks/useMemories';
 
 const typeLabels: Record<MemoryType, string> = {
@@ -25,8 +24,6 @@ interface Props {
 }
 
 export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightButton }: Props) {
-  const editable = isToday(entry.entry_date);
-
   const timeString = new Date(entry.created_at).toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit'
@@ -99,7 +96,7 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
         ) : null;
       })() : null}
 
-      {editable && (onEdit || onDelete) && (
+      {(onEdit || onDelete) && (
         <footer className="flex gap-3 pt-2 border-t border-stone-100">
           {onEdit && (
             <button

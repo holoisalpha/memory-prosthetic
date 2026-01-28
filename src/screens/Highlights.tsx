@@ -1,15 +1,17 @@
 import { useState, useRef } from 'react';
 import { useHighlightedEntries, addStandaloneHighlight } from '../hooks/useMemories';
 import { MemoryCard } from '../components/MemoryCard';
-import type { MemoryType } from '../lib/types';
+import type { MemoryType, MemoryEntry } from '../lib/types';
 
 const MAX_PHOTOS = 3;
 
 interface Props {
   onBack: () => void;
+  onEditMemory: (entry: MemoryEntry) => void;
+  onDeleteMemory: (id: string) => void;
 }
 
-export function Highlights({ onBack }: Props) {
+export function Highlights({ onBack, onEditMemory, onDeleteMemory }: Props) {
   const highlights = useHighlightedEntries();
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -223,6 +225,8 @@ export function Highlights({ onBack }: Props) {
                   key={entry.id}
                   entry={entry}
                   showDate
+                  onEdit={onEditMemory}
+                  onDelete={onDeleteMemory}
                 />
               ))}
             </div>
