@@ -5,6 +5,7 @@ import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hoo
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
 
 const MAX_LENGTH = 240;
+const MAX_PHOTOS = 3;
 
 interface Props {
   onClose: () => void;
@@ -16,7 +17,7 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   const [type, setType] = useState<MemoryType>(editingEntry?.type ?? 'moment');
   const [content, setContent] = useState(editingEntry?.content ?? '');
   const [tone, setTone] = useState<Tone>(editingEntry?.tone ?? 'neutral');
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>(editingEntry?.photo_url);
+  const [photoUrls, setPhotoUrls] = useState<string[]>(editingEntry?.photo_urls ?? []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,15 +26,31 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   const disabledTypes: MemoryType[] = canGratitude ? [] : ['gratitude'];
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files) return;
 
-    // Convert to base64 data URL for local storage
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    // Process each selected file
+    Array.from(files).forEach(file => {
+      if (photoUrls.length >= MAX_PHOTOS) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoUrls(prev => {
+          if (prev.length >= MAX_PHOTOS) return prev;
+          return [...prev, reader.result as string];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotoUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -47,13 +64,13 @@ export function AddMemory({ onClose, editingEntry }: Props) {
 
     try {
       if (editingEntry) {
-        const success = await updateEntry(editingEntry.id, { content: content.trim(), tone, type, photo_url: photoUrl });
+        const success = await updateEntry(editingEntry.id, { content: content.trim(), tone, type, photo_urls: photoUrls.length > 0 ? photoUrls : undefined });
         if (!success) {
           setError('Could not update entry');
           return;
         }
       } else {
-        const result = await addEntry(type, content.trim(), tone, photoUrl);
+        const result = await addEntry(type, content.trim(), tone, photoUrls.length > 0 ? photoUrls : undefined);
         if ('error' in result) {
           setError(result.error);
           return;
@@ -131,38 +148,44 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           <ToneSelector selected={tone} onChange={setTone} />
         </section>
 
-        {/* Photo */}
+        {/* Photos */}
         <section>
             <label className="block text-xs text-stone-400 uppercase tracking-wide mb-2">
-              Photo (optional)
+              Photos (optional, up to {MAX_PHOTOS})
             </label>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handlePhotoSelect}
               className="hidden"
             />
-            {photoUrl ? (
-              <div className="relative">
-                <img
-                  src={photoUrl}
-                  alt=""
-                  className="w-full rounded-lg object-cover max-h-48"
-                />
-                <button
-                  onClick={() => setPhotoUrl(undefined)}
-                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 text-xs"
-                >
-                  ×
-                </button>
+            {photoUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {photoUrls.map((url, index) => (
+                  <div key={index} className="relative aspect-square">
+                    <img
+                      src={url}
+                      alt=""
+                      className="w-full h-full rounded-lg object-cover"
+                    />
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
+            )}
+            {photoUrls.length < MAX_PHOTOS && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full py-3 border border-dashed border-stone-300 rounded-lg text-stone-400 text-sm hover:border-stone-400 hover:text-stone-500"
               >
-                Add photo
+                {photoUrls.length === 0 ? 'Add photos' : `Add more (${MAX_PHOTOS - photoUrls.length} remaining)`}
               </button>
             )}
           </section>

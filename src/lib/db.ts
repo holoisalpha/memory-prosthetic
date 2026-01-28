@@ -22,8 +22,63 @@ class MemoryDatabase extends Dexie {
 
 export const db = new MemoryDatabase();
 
+// Helper: Get local date string (YYYY-MM-DD)
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper: Check if a date string is today (local time)
+export function isToday(dateString: string): boolean {
+  return dateString === getLocalDateString();
+}
+
+// Helper: Check if entry is editable (only editable on same day)
+export function isEntryEditable(entry: MemoryEntry): boolean {
+  return isToday(entry.entry_date);
+}
+
+// Migration: Fix entry dates that were stored with UTC instead of local time
+async function migrateEntryDatesToLocal() {
+  const migrated = localStorage.getItem('entry_dates_migrated');
+  if (migrated) return;
+
+  const entries = await db.entries.toArray();
+  for (const entry of entries) {
+    const createdAt = new Date(entry.created_at);
+    const correctLocalDate = getLocalDateString(createdAt);
+    if (entry.entry_date !== correctLocalDate) {
+      await db.entries.update(entry.id, { entry_date: correctLocalDate });
+    }
+  }
+  localStorage.setItem('entry_dates_migrated', 'true');
+}
+
+// Migration: Convert photo_url to photo_urls array
+async function migratePhotoUrlToPhotosArray() {
+  const migrated = localStorage.getItem('photo_urls_migrated');
+  if (migrated) return;
+
+  const entries = await db.entries.toArray();
+  for (const entry of entries) {
+    if (entry.photo_url && !entry.photo_urls) {
+      await db.entries.update(entry.id, {
+        photo_urls: [entry.photo_url],
+        photo_url: undefined
+      });
+    }
+  }
+  localStorage.setItem('photo_urls_migrated', 'true');
+}
+
 // Initialize default settings if not present, or migrate existing settings
 export async function initSettings(): Promise<Settings> {
+  // Run migrations
+  await migrateEntryDatesToLocal();
+  await migratePhotoUrlToPhotosArray();
+
   const existing = await db.settings.get('default');
 
   const defaults: Settings = {
@@ -51,19 +106,4 @@ export async function initSettings(): Promise<Settings> {
   }
 
   return updated;
-}
-
-// Helper: Get local date string (YYYY-MM-DD)
-export function getLocalDateString(date: Date = new Date()): string {
-  return date.toISOString().split('T')[0];
-}
-
-// Helper: Check if a date string is today (local time)
-export function isToday(dateString: string): boolean {
-  return dateString === getLocalDateString();
-}
-
-// Helper: Check if entry is editable (only editable on same day)
-export function isEntryEditable(entry: MemoryEntry): boolean {
-  return isToday(entry.entry_date);
 }

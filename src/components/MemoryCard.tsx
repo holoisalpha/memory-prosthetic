@@ -78,12 +78,17 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
         {entry.content}
       </p>
 
-      {entry.photo_url && (
-        <img
-          src={entry.photo_url}
-          alt=""
-          className="w-full rounded-md object-cover max-h-48"
-        />
+      {entry.photo_urls && entry.photo_urls.length > 0 && (
+        <div className={`grid gap-2 ${entry.photo_urls.length === 1 ? 'grid-cols-1' : entry.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {entry.photo_urls.map((url, index) => (
+            <img
+              key={index}
+              src={url}
+              alt=""
+              className={`w-full rounded-md object-cover ${entry.photo_urls!.length === 1 ? 'max-h-48' : 'aspect-square'}`}
+            />
+          ))}
+        </div>
       )}
 
       {editable && (onEdit || onDelete) && (

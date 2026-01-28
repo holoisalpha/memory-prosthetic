@@ -3,6 +3,8 @@ import { useHighlightedEntries, addStandaloneHighlight } from '../hooks/useMemor
 import { MemoryCard } from '../components/MemoryCard';
 import type { MemoryType } from '../lib/types';
 
+const MAX_PHOTOS = 3;
+
 interface Props {
   onBack: () => void;
 }
@@ -15,30 +17,45 @@ export function Highlights({ onBack }: Props) {
   const [content, setContent] = useState('');
   const [entryDate, setEntryDate] = useState('');
   const [type, setType] = useState<MemoryType>('moment');
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>();
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    Array.from(files).forEach(file => {
+      if (photoUrls.length >= MAX_PHOTOS) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoUrls(prev => {
+          if (prev.length >= MAX_PHOTOS) return prev;
+          return [...prev, reader.result as string];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotoUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
     if (!content.trim() || !entryDate) return;
 
     setSaving(true);
-    await addStandaloneHighlight(content, entryDate, type, 'neutral', photoUrl);
+    await addStandaloneHighlight(content, entryDate, type, 'neutral', photoUrls.length > 0 ? photoUrls : undefined);
     setContent('');
     setEntryDate('');
     setType('moment');
-    setPhotoUrl(undefined);
+    setPhotoUrls([]);
     setShowAddForm(false);
     setSaving(false);
   };
@@ -119,34 +136,40 @@ export function Highlights({ onBack }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs text-stone-500 mb-1">Photo (optional)</label>
+                <label className="block text-xs text-stone-500 mb-1">Photos (optional, up to {MAX_PHOTOS})</label>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handlePhotoSelect}
                   className="hidden"
                 />
-                {photoUrl ? (
-                  <div className="relative">
-                    <img
-                      src={photoUrl}
-                      alt=""
-                      className="w-full rounded-lg object-cover max-h-48"
-                    />
-                    <button
-                      onClick={() => setPhotoUrl(undefined)}
-                      className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 text-xs"
-                    >
-                      ×
-                    </button>
+                {photoUrls.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {photoUrls.map((url, index) => (
+                      <div key={index} className="relative aspect-square">
+                        <img
+                          src={url}
+                          alt=""
+                          className="w-full h-full rounded-lg object-cover"
+                        />
+                        <button
+                          onClick={() => removePhoto(index)}
+                          className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
+                )}
+                {photoUrls.length < MAX_PHOTOS && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="w-full py-3 border border-dashed border-stone-300 rounded-lg text-stone-400 text-sm hover:border-stone-400 hover:text-stone-500"
                   >
-                    Add photo
+                    {photoUrls.length === 0 ? 'Add photos' : `Add more (${MAX_PHOTOS - photoUrls.length} remaining)`}
                   </button>
                 )}
               </div>

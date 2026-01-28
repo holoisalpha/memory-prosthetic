@@ -10,7 +10,8 @@ export interface MemoryEntry {
   type: MemoryType;
   content: string;         // max 240 characters
   tone: Tone;
-  photo_url?: string;      // optional, max 1 per day
+  photo_url?: string;      // deprecated, kept for migration
+  photo_urls?: string[];   // optional, max 3 photos per entry
   highlighted?: boolean;   // marked as a core memory / highlight
   is_standalone_highlight?: boolean; // bypasses daily limits, for past life events
 }

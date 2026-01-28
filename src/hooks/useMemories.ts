@@ -32,9 +32,9 @@ export function useEntriesForMonth(yearMonth: string) {
   );
 }
 
-// Get all entries (for archive/export)
+// Get all entries (for archive/export) - sorted chronologically by entry_date
 export function useAllEntries() {
-  return useLiveQuery(() => db.entries.orderBy('created_at').reverse().toArray());
+  return useLiveQuery(() => db.entries.orderBy('entry_date').reverse().toArray());
 }
 
 // Get settings
@@ -60,7 +60,7 @@ export async function addEntry(
   type: MemoryType,
   content: string,
   tone: Tone = 'neutral',
-  photoUrl?: string
+  photoUrls?: string[]
 ): Promise<MemoryEntry | { error: string }> {
   const today = getLocalDateString();
   const todaysEntries = await db.entries.where('entry_date').equals(today).toArray();
@@ -88,7 +88,7 @@ export async function addEntry(
     type,
     content: content.trim(),
     tone,
-    photo_url: photoUrl
+    photo_urls: photoUrls?.slice(0, 3) // max 3 photos
   };
 
   await db.entries.add(entry);
@@ -99,7 +99,7 @@ export async function addEntry(
 // Update an entry (only if still today)
 export async function updateEntry(
   id: string,
-  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_url'>>
+  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls'>>
 ): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
@@ -116,6 +116,11 @@ export async function updateEntry(
     if (gratitudeCount >= MAX_GRATITUDE_PER_DAY) {
       return false;
     }
+  }
+
+  // Limit to 3 photos
+  if (updates.photo_urls) {
+    updates.photo_urls = updates.photo_urls.slice(0, 3);
   }
 
   await db.entries.update(id, updates);
@@ -182,7 +187,8 @@ export async function getResurfacedMemory(): Promise<MemoryEntry | null> {
 export async function exportData(): Promise<string> {
   const entries = await db.entries.toArray();
   const settings = await db.settings.toArray();
-  return JSON.stringify({ entries, settings, exportedAt: new Date().toISOString() }, null, 2);
+  const bucket = await db.bucket.toArray();
+  return JSON.stringify({ entries, settings, bucket, exportedAt: new Date().toISOString() }, null, 2);
 }
 
 // Export as CSV
@@ -207,6 +213,55 @@ export async function exportCSV(): Promise<string> {
 export async function deleteAllData(): Promise<void> {
   await db.entries.clear();
   await db.settings.clear();
+  await db.bucket.clear();
+}
+
+// Import data from JSON backup
+export async function importData(jsonString: string): Promise<{ entries: number; bucket: number; error?: string }> {
+  try {
+    const data = JSON.parse(jsonString);
+
+    let entriesImported = 0;
+    let bucketImported = 0;
+
+    // Import entries
+    if (data.entries && Array.isArray(data.entries)) {
+      for (const entry of data.entries) {
+        // Check if entry already exists
+        const existing = await db.entries.get(entry.id);
+        if (!existing) {
+          await db.entries.add(entry);
+          entriesImported++;
+        }
+      }
+    }
+
+    // Import bucket items
+    if (data.bucket && Array.isArray(data.bucket)) {
+      for (const item of data.bucket) {
+        const existing = await db.bucket.get(item.id);
+        if (!existing) {
+          await db.bucket.add(item);
+          bucketImported++;
+        }
+      }
+    }
+
+    // Import settings (merge with existing)
+    if (data.settings && Array.isArray(data.settings)) {
+      const importedSettings = data.settings.find((s: any) => s.id === 'default');
+      if (importedSettings) {
+        const existing = await db.settings.get('default');
+        if (!existing) {
+          await db.settings.put(importedSettings);
+        }
+      }
+    }
+
+    return { entries: entriesImported, bucket: bucketImported };
+  } catch (err) {
+    return { entries: 0, bucket: 0, error: 'Invalid JSON file' };
+  }
 }
 
 // Toggle highlight status on an entry
@@ -231,7 +286,7 @@ export async function addStandaloneHighlight(
   entryDate: string, // YYYY-MM-DD for the event date
   type: MemoryType = 'moment',
   tone: Tone = 'neutral',
-  photoUrl?: string
+  photoUrls?: string[]
 ): Promise<MemoryEntry | { error: string }> {
   if (content.length > MAX_CONTENT_LENGTH) {
     return { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` };
@@ -244,7 +299,7 @@ export async function addStandaloneHighlight(
     type,
     content: content.trim(),
     tone,
-    photo_url: photoUrl,
+    photo_urls: photoUrls?.slice(0, 3), // max 3 photos
     highlighted: true,
     is_standalone_highlight: true
   };
