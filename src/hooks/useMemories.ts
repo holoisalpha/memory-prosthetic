@@ -96,7 +96,7 @@ export async function addEntry(
     type,
     content: content.trim(),
     tone,
-    photo_urls: photoUrls?.slice(0, 5) // max 5 photos
+    photo_urls: photoUrls?.slice(0, 9) // max 9 photos
   };
 
   await db.entries.add(entry);
@@ -127,7 +127,7 @@ export async function updateEntry(
 
   // Limit to 3 photos
   if (updates.photo_urls) {
-    updates.photo_urls = updates.photo_urls.slice(0, 5);
+    updates.photo_urls = updates.photo_urls.slice(0, 9);
   }
 
   await db.entries.update(id, updates);

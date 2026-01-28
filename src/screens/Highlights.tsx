@@ -3,7 +3,7 @@ import { useHighlightedEntries, addStandaloneHighlight } from '../hooks/useMemor
 import { MemoryCard } from '../components/MemoryCard';
 import type { MemoryType, MemoryEntry } from '../lib/types';
 
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 9;
 
 interface Props {
   onBack: () => void;

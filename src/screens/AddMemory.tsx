@@ -5,7 +5,7 @@ import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hoo
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
 
 const MAX_LENGTH = 240;
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 9;
 
 interface Props {
   onClose: () => void;
