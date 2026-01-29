@@ -21,28 +21,19 @@ export function PhotoLightbox({ src, onClose }: Props) {
   }, [src]);
 
   // Get distance between two touch points
-  const getTouchDistance = (touches: TouchList) => {
-    if (touches.length < 2) return null;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
+  const getTouchDistance = (t1: Touch, t2: Touch) => {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
     return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  // Get center point between two touches
-  const getTouchCenter = (touches: TouchList) => {
-    if (touches.length < 2) return null;
-    return {
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2
-    };
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
+    const touches = e.nativeEvent.touches;
 
-    if (e.touches.length === 2) {
+    if (touches.length === 2) {
       // Pinch start
-      lastPinchDistanceRef.current = getTouchDistance(e.touches);
+      lastPinchDistanceRef.current = getTouchDistance(touches[0], touches[1]);
     } else if (e.touches.length === 1) {
       // Check for double tap
       const now = Date.now();
@@ -72,19 +63,20 @@ export function PhotoLightbox({ src, onClose }: Props) {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     e.stopPropagation();
+    const touches = e.nativeEvent.touches;
 
-    if (e.touches.length === 2) {
+    if (touches.length === 2) {
       // Pinch zoom
-      const newDistance = getTouchDistance(e.touches);
+      const newDistance = getTouchDistance(touches[0], touches[1]);
       if (newDistance && lastPinchDistanceRef.current) {
         const delta = newDistance / lastPinchDistanceRef.current;
         setScale(prev => Math.min(Math.max(prev * delta, 1), 5));
         lastPinchDistanceRef.current = newDistance;
       }
-    } else if (e.touches.length === 1 && isDragging && lastTouchRef.current && scale > 1) {
+    } else if (touches.length === 1 && isDragging && lastTouchRef.current && scale > 1) {
       // Pan while zoomed
-      const deltaX = e.touches[0].clientX - lastTouchRef.current.x;
-      const deltaY = e.touches[0].clientY - lastTouchRef.current.y;
+      const deltaX = touches[0].clientX - lastTouchRef.current.x;
+      const deltaY = touches[0].clientY - lastTouchRef.current.y;
 
       setPosition(prev => ({
         x: prev.x + deltaX,
@@ -92,8 +84,8 @@ export function PhotoLightbox({ src, onClose }: Props) {
       }));
 
       lastTouchRef.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY
+        x: touches[0].clientX,
+        y: touches[0].clientY
       };
     }
   };
