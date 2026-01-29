@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useTodaysEntries, useSettings, canAddEntry, getResurfacedMemory } from '../hooks/useMemories';
+import { useTodaysEntries, useSettings, getResurfacedMemory } from '../hooks/useMemories';
 import { getTodaysPrompt } from '../data/prompts';
 import { MemoryCard } from '../components/MemoryCard';
 import type { MemoryEntry } from '../lib/types';
@@ -20,7 +20,6 @@ export function Home({ onAddMemory, onEditMemory, onDeleteMemory, onNavigateToBu
   const [resurfaced, setResurfaced] = useState<MemoryEntry | null>(null);
   const prompt = getTodaysPrompt();
 
-  const canAdd = canAddEntry(entries);
   const entryCount = entries?.length ?? 0;
 
   useEffect(() => {
@@ -86,38 +85,33 @@ export function Home({ onAddMemory, onEditMemory, onDeleteMemory, onNavigateToBu
       </header>
 
       <main className="px-4 py-6 space-y-6 max-w-md mx-auto">
-        {/* Today's prompt */}
-        {canAdd && (
-          <section className="bg-white rounded-lg border border-stone-200 p-4">
-            <p className="text-stone-500 text-sm mb-4 italic">
-              "{prompt.text}"
+        {/* Capture prompt - always available */}
+        <section className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100 p-5">
+          <p className="text-amber-900/70 text-sm mb-4 italic">
+            "{prompt.text}"
+          </p>
+          <button
+            onClick={onAddMemory}
+            className="w-full py-3 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors shadow-sm"
+          >
+            Capture a moment
+          </button>
+          {entryCount > 0 && (
+            <p className="text-xs text-amber-700/60 text-center mt-3">
+              {entryCount} {entryCount === 1 ? 'memory' : 'memories'} today
             </p>
-            <button
-              onClick={onAddMemory}
-              className="w-full py-3 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors"
-            >
-              Add memory
-            </button>
-            <p className="text-xs text-stone-400 text-center mt-3">
-              {entryCount}/3 entries today
-            </p>
-          </section>
-        )}
+          )}
+        </section>
 
-        {!canAdd && (
-          <section className="bg-stone-100 rounded-lg p-4 text-center">
-            <p className="text-stone-600 text-sm">
-              You've captured 3 memories today.
-            </p>
-          </section>
-        )}
-
-        {/* Resurfaced memory (if enabled and available) */}
+        {/* Resurfaced memory - a delightful surprise from the past */}
         {resurfaced && (
           <section className="space-y-2">
-            <h2 className="text-xs text-stone-400 uppercase tracking-wide">
-              From your past
-            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-500">✨</span>
+              <h2 className="text-sm text-stone-600 font-medium">
+                Remember this?
+              </h2>
+            </div>
             <MemoryCard entry={resurfaced} showDate />
           </section>
         )}
@@ -125,8 +119,8 @@ export function Home({ onAddMemory, onEditMemory, onDeleteMemory, onNavigateToBu
         {/* Today's entries */}
         {entries && entries.length > 0 && (
           <section className="space-y-3">
-            <h2 className="text-xs text-stone-400 uppercase tracking-wide">
-              Today's memories
+            <h2 className="text-sm text-stone-500 font-medium">
+              Today
             </h2>
             {entries.map(entry => (
               <MemoryCard

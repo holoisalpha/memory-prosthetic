@@ -4,8 +4,8 @@ import { db, getLocalDateString } from '../lib/db';
 import { syncEntryToCloud, deleteEntryFromCloud, syncBucketItemToCloud, deleteBucketItemFromCloud } from '../lib/sync';
 import type { MemoryEntry, MemoryType, Tone, Settings, BucketItem } from '../lib/types';
 
-const MAX_ENTRIES_PER_DAY = 3;
-const MAX_GRATITUDE_PER_DAY = 1;
+// Removed daily limits - capture when it feels meaningful
+const MAX_GRATITUDE_PER_DAY = 1; // Keep gentle limit on gratitude to encourage variety
 
 // Store current user ID for auto-sync
 let currentUserId: string | null = null;
@@ -61,10 +61,9 @@ export function useSettings() {
   return useLiveQuery(() => db.settings.get('default'));
 }
 
-// Check if can add entry today
-export function canAddEntry(todaysEntries: MemoryEntry[] | undefined): boolean {
-  if (!todaysEntries) return true;
-  return todaysEntries.length < MAX_ENTRIES_PER_DAY;
+// Always allow adding entries - no daily limit
+export function canAddEntry(_todaysEntries: MemoryEntry[] | undefined): boolean {
+  return true;
 }
 
 // Check if can add gratitude today
@@ -86,11 +85,7 @@ export async function addEntry(
   const today = getLocalDateString();
   const todaysEntries = await db.entries.where('entry_date').equals(today).toArray();
 
-  // Validate constraints
-  if (todaysEntries.length >= MAX_ENTRIES_PER_DAY) {
-    return { error: 'Maximum 3 entries per day reached' };
-  }
-
+  // Gentle limit on gratitude to encourage variety
   if (type === 'gratitude') {
     const gratitudeCount = todaysEntries.filter(e => e.type === 'gratitude').length;
     if (gratitudeCount >= MAX_GRATITUDE_PER_DAY) {

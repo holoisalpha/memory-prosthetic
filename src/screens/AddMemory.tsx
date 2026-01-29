@@ -107,7 +107,7 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           Cancel
         </button>
         <h1 className="font-medium text-stone-900">
-          {editingEntry ? 'Edit memory' : 'New memory'}
+          {editingEntry ? 'Edit' : 'Capture'}
         </h1>
         <button
           onClick={handleSubmit}
@@ -140,13 +140,13 @@ export function AddMemory({ onClose, editingEntry }: Props) {
         {/* Content */}
         <section>
           <label className="block text-xs text-stone-400 uppercase tracking-wide mb-2">
-            Memory
+            What's on your mind?
           </label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="What do you want to remember?"
-            className="w-full h-32 p-3 border border-stone-200 rounded-lg text-stone-800 text-sm resize-none focus:outline-none focus:border-stone-400"
+            placeholder="A moment, a thought, something you're grateful for..."
+            className="w-full h-32 p-3 border border-stone-200 rounded-lg text-stone-800 text-sm resize-none focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100"
             autoFocus
           />
           {error && (
