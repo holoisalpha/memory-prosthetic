@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings, updateSettings, exportData, exportCSV, importData, deleteAllData } from '../hooks/useMemories';
 import { useAuth } from '../hooks/useAuth';
-import { signOut } from '../lib/supabase';
 import { fullSync, uploadAllToCloud, downloadAllFromCloud } from '../lib/sync';
 
 declare global {
@@ -10,13 +9,9 @@ declare global {
   }
 }
 
-interface Props {
-  onShowAuth?: () => void;
-}
-
-export function Settings({ onShowAuth }: Props) {
+export function Settings() {
   const settings = useSettings();
-  const { user, isLoggedIn } = useAuth();
+  const { user, userId, signOut } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [notificationsOn, setNotificationsOn] = useState(false);
@@ -265,82 +260,73 @@ export function Settings({ onShowAuth }: Props) {
           <div>
             <h2 className="font-medium text-stone-900 text-sm">Cloud sync</h2>
             <p className="text-xs text-stone-400 mt-1">
-              {isLoggedIn ? `Signed in as ${user?.email}` : 'Sync across devices, never lose data'}
+              Signed in as {user?.primaryEmailAddress?.emailAddress}
             </p>
           </div>
 
-          {!isLoggedIn ? (
-            <button
-              onClick={onShowAuth}
-              className="w-full py-2 bg-stone-900 text-white rounded-lg text-sm font-medium"
-            >
-              Sign in to enable sync
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setSyncStatus('Syncing...');
-                    const result = await fullSync();
-                    if (result.error) {
-                      setSyncStatus(`Error: ${result.error}`);
-                    } else {
-                      setSyncStatus(`Synced! ↑${result.uploaded} ↓${result.downloaded}`);
-                    }
-                    setTimeout(() => setSyncStatus(''), 3000);
-                  }}
-                  className="flex-1 py-2 text-sm border border-stone-200 rounded"
-                >
-                  Sync now
-                </button>
-                <button
-                  onClick={async () => {
-                    setSyncStatus('Uploading...');
-                    const result = await uploadAllToCloud();
-                    if (result.error) {
-                      setSyncStatus(`Error: ${result.error}`);
-                    } else {
-                      setSyncStatus(`Uploaded ${result.entries} entries, ${result.bucket} bucket items`);
-                    }
-                    setTimeout(() => setSyncStatus(''), 3000);
-                  }}
-                  className="flex-1 py-2 text-sm border border-stone-200 rounded"
-                >
-                  Upload all
-                </button>
-              </div>
+          <div className="space-y-3">
+            <div className="flex gap-2">
               <button
                 onClick={async () => {
-                  setSyncStatus('Downloading...');
-                  const result = await downloadAllFromCloud();
+                  if (!userId) return;
+                  setSyncStatus('Syncing...');
+                  const result = await fullSync(userId);
                   if (result.error) {
                     setSyncStatus(`Error: ${result.error}`);
                   } else {
-                    setSyncStatus(`Downloaded ${result.entries} entries, ${result.bucket} bucket items`);
+                    setSyncStatus(`Synced! ↑${result.uploaded} ↓${result.downloaded}`);
                   }
                   setTimeout(() => setSyncStatus(''), 3000);
                 }}
-                className="w-full py-2 text-sm border border-stone-200 rounded"
+                className="flex-1 py-2 text-sm border border-stone-200 rounded"
               >
-                Download from cloud
+                Sync now
               </button>
-              {syncStatus && (
-                <p className={`text-xs ${syncStatus.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
-                  {syncStatus}
-                </p>
-              )}
               <button
                 onClick={async () => {
-                  await signOut();
-                  setSyncStatus('Signed out');
+                  if (!userId) return;
+                  setSyncStatus('Uploading...');
+                  const result = await uploadAllToCloud(userId);
+                  if (result.error) {
+                    setSyncStatus(`Error: ${result.error}`);
+                  } else {
+                    setSyncStatus(`Uploaded ${result.entries} entries, ${result.bucket} bucket items`);
+                  }
+                  setTimeout(() => setSyncStatus(''), 3000);
                 }}
-                className="w-full py-2 text-sm text-stone-500 hover:text-stone-700"
+                className="flex-1 py-2 text-sm border border-stone-200 rounded"
               >
-                Sign out
+                Upload all
               </button>
             </div>
-          )}
+            <button
+              onClick={async () => {
+                if (!userId) return;
+                setSyncStatus('Downloading...');
+                const result = await downloadAllFromCloud(userId);
+                if (result.error) {
+                  setSyncStatus(`Error: ${result.error}`);
+                } else {
+                  setSyncStatus(`Downloaded ${result.entries} entries, ${result.bucket} bucket items`);
+                }
+                setTimeout(() => setSyncStatus(''), 3000);
+              }}
+              className="w-full py-2 text-sm border border-stone-200 rounded"
+            >
+              Download from cloud
+            </button>
+            {syncStatus && (
+              <p className={`text-xs ${syncStatus.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+                {syncStatus}
+              </p>
+            )}
+            <button
+              onClick={() => signOut()}
+              className="w-full py-2 text-sm text-red-500 hover:text-red-700"
+            >
+              Sign out
+            </button>
+          </div>
         </section>
 
         {/* Export */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { initSettings } from './lib/db';
 import { deleteEntry } from './hooks/useMemories';
+import { useAuth } from './hooks/useAuth';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './screens/Home';
 import { AddMemory } from './screens/AddMemory';
@@ -17,9 +18,9 @@ import type { MemoryEntry } from './lib/types';
 type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
 
 export default function App() {
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [screen, setScreen] = useState<Screen>('home');
   const [showAddMemory, setShowAddMemory] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MemoryEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -27,6 +28,20 @@ export default function App() {
   useEffect(() => {
     initSettings();
   }, []);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <p className="text-stone-400">Loading...</p>
+      </div>
+    );
+  }
+
+  // Require authentication
+  if (!isLoggedIn) {
+    return <Auth />;
+  }
 
   const handleAddMemory = () => {
     setEditingEntry(null);
@@ -54,13 +69,6 @@ export default function App() {
   const handleBackFromDay = () => {
     setSelectedDate(null);
   };
-
-  // Render auth modal
-  if (showAuth) {
-    return (
-      <Auth onSuccess={() => setShowAuth(false)} />
-    );
-  }
 
   // Render add/edit modal
   if (showAddMemory) {
@@ -113,7 +121,7 @@ export default function App() {
         />
       )}
       {screen === 'bucket' && <Bucket onBack={() => setScreen('home')} />}
-      {screen === 'settings' && <Settings onShowAuth={() => setShowAuth(true)} />}
+      {screen === 'settings' && <Settings />}
 
       <BottomNav current={screen} onNavigate={setScreen} />
     </>

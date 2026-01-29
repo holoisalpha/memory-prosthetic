@@ -1,7 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ClerkProvider } from '@clerk/clerk-react'
 import './styles.css'
 import App from './App'
+
+const CLERK_PUBLISHABLE_KEY = 'pk_test_bW9yZS1wZW5ndWluLTY0LmNsZXJrLmFjY291bnRzLmRldiQ'
 
 // Initialize OneSignal
 declare global {
@@ -23,6 +26,8 @@ window.OneSignalDeferred.push(async function(OneSignal) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <App />
+    </ClerkProvider>
   </StrictMode>,
 )

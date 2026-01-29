@@ -1,4 +1,4 @@
-import { supabase, getUser } from './supabase';
+import { supabase } from './supabase';
 import { db } from './db';
 import type { MemoryEntry, BucketItem, Settings } from './types';
 
@@ -7,9 +7,8 @@ let isSyncing = false;
 let lastSyncTime: string | null = null;
 
 // Upload local data to Supabase (for initial migration)
-export async function uploadAllToCloud(): Promise<{ entries: number; bucket: number; error?: string }> {
-  const user = await getUser();
-  if (!user) return { entries: 0, bucket: 0, error: 'Not logged in' };
+export async function uploadAllToCloud(userId: string): Promise<{ entries: number; bucket: number; error?: string }> {
+  if (!userId) return { entries: 0, bucket: 0, error: 'Not logged in' };
 
   try {
     // Get all local entries
@@ -24,7 +23,7 @@ export async function uploadAllToCloud(): Promise<{ entries: number; bucket: num
     for (const entry of localEntries) {
       const { error } = await supabase.from('entries').upsert({
         ...entry,
-        user_id: user.id,
+        user_id: userId,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 
@@ -35,7 +34,7 @@ export async function uploadAllToCloud(): Promise<{ entries: number; bucket: num
     for (const item of localBucket) {
       const { error } = await supabase.from('bucket_items').upsert({
         ...item,
-        user_id: user.id,
+        user_id: userId,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 
@@ -46,8 +45,8 @@ export async function uploadAllToCloud(): Promise<{ entries: number; bucket: num
     if (localSettings) {
       await supabase.from('settings').upsert({
         ...localSettings,
-        id: user.id, // Use user ID as settings ID
-        user_id: user.id,
+        id: userId,
+        user_id: userId,
       }, { onConflict: 'id' });
     }
 
@@ -59,9 +58,8 @@ export async function uploadAllToCloud(): Promise<{ entries: number; bucket: num
 }
 
 // Download cloud data to local (for new device)
-export async function downloadAllFromCloud(): Promise<{ entries: number; bucket: number; error?: string }> {
-  const user = await getUser();
-  if (!user) return { entries: 0, bucket: 0, error: 'Not logged in' };
+export async function downloadAllFromCloud(userId: string): Promise<{ entries: number; bucket: number; error?: string }> {
+  if (!userId) return { entries: 0, bucket: 0, error: 'Not logged in' };
 
   try {
     let entriesDownloaded = 0;
@@ -71,7 +69,7 @@ export async function downloadAllFromCloud(): Promise<{ entries: number; bucket:
     const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (entriesError) throw entriesError;
 
@@ -89,7 +87,7 @@ export async function downloadAllFromCloud(): Promise<{ entries: number; bucket:
     const { data: bucketItems, error: bucketError } = await supabase
       .from('bucket_items')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (bucketError) throw bucketError;
 
@@ -106,7 +104,7 @@ export async function downloadAllFromCloud(): Promise<{ entries: number; bucket:
     const { data: settings } = await supabase
       .from('settings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (settings) {
@@ -122,13 +120,12 @@ export async function downloadAllFromCloud(): Promise<{ entries: number; bucket:
 }
 
 // Sync a single entry to cloud
-export async function syncEntryToCloud(entry: MemoryEntry): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
+export async function syncEntryToCloud(entry: MemoryEntry, userId: string): Promise<boolean> {
+  if (!userId) return false;
 
   const { error } = await supabase.from('entries').upsert({
     ...entry,
-    user_id: user.id,
+    user_id: userId,
     synced_at: new Date().toISOString(),
   }, { onConflict: 'id' });
 
@@ -136,22 +133,20 @@ export async function syncEntryToCloud(entry: MemoryEntry): Promise<boolean> {
 }
 
 // Delete entry from cloud
-export async function deleteEntryFromCloud(id: string): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
+export async function deleteEntryFromCloud(id: string, userId: string): Promise<boolean> {
+  if (!userId) return false;
 
-  const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', user.id);
+  const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', userId);
   return !error;
 }
 
 // Sync a bucket item to cloud
-export async function syncBucketItemToCloud(item: BucketItem): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
+export async function syncBucketItemToCloud(item: BucketItem, userId: string): Promise<boolean> {
+  if (!userId) return false;
 
   const { error } = await supabase.from('bucket_items').upsert({
     ...item,
-    user_id: user.id,
+    user_id: userId,
     synced_at: new Date().toISOString(),
   }, { onConflict: 'id' });
 
@@ -159,20 +154,17 @@ export async function syncBucketItemToCloud(item: BucketItem): Promise<boolean> 
 }
 
 // Delete bucket item from cloud
-export async function deleteBucketItemFromCloud(id: string): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
+export async function deleteBucketItemFromCloud(id: string, userId: string): Promise<boolean> {
+  if (!userId) return false;
 
-  const { error } = await supabase.from('bucket_items').delete().eq('id', id).eq('user_id', user.id);
+  const { error } = await supabase.from('bucket_items').delete().eq('id', id).eq('user_id', userId);
   return !error;
 }
 
 // Full bidirectional sync
-export async function fullSync(): Promise<{ uploaded: number; downloaded: number; error?: string }> {
+export async function fullSync(userId: string): Promise<{ uploaded: number; downloaded: number; error?: string }> {
   if (isSyncing) return { uploaded: 0, downloaded: 0, error: 'Sync already in progress' };
-
-  const user = await getUser();
-  if (!user) return { uploaded: 0, downloaded: 0, error: 'Not logged in' };
+  if (!userId) return { uploaded: 0, downloaded: 0, error: 'Not logged in' };
 
   isSyncing = true;
   let uploaded = 0;
@@ -184,8 +176,8 @@ export async function fullSync(): Promise<{ uploaded: number; downloaded: number
     const localBucket = await db.bucket.toArray();
 
     // Get all cloud entries
-    const { data: cloudEntries } = await supabase.from('entries').select('*').eq('user_id', user.id);
-    const { data: cloudBucket } = await supabase.from('bucket_items').select('*').eq('user_id', user.id);
+    const { data: cloudEntries } = await supabase.from('entries').select('*').eq('user_id', userId);
+    const { data: cloudBucket } = await supabase.from('bucket_items').select('*').eq('user_id', userId);
 
     // Create maps for quick lookup
     const localEntryMap = new Map(localEntries.map(e => [e.id, e]));
@@ -196,7 +188,7 @@ export async function fullSync(): Promise<{ uploaded: number; downloaded: number
     // Upload local entries not in cloud
     for (const entry of localEntries) {
       if (!cloudEntryMap.has(entry.id)) {
-        await syncEntryToCloud(entry);
+        await syncEntryToCloud(entry, userId);
         uploaded++;
       }
     }
@@ -213,7 +205,7 @@ export async function fullSync(): Promise<{ uploaded: number; downloaded: number
     // Same for bucket items
     for (const item of localBucket) {
       if (!cloudBucketMap.has(item.id)) {
-        await syncBucketItemToCloud(item);
+        await syncBucketItemToCloud(item, userId);
         uploaded++;
       }
     }
