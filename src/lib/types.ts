@@ -16,6 +16,17 @@ export interface MemoryEntry {
   highlighted?: boolean;   // marked as a core memory / highlight
   is_standalone_highlight?: boolean; // bypasses daily limits, for past life events
   tags?: string[];         // custom tags
+  people?: string[];       // array of person IDs tagged in this memory
+}
+
+// Person for tagging in memories (foundation for personal CRM)
+export interface Person {
+  id: string;
+  name: string;
+  photo_url?: string;      // optional profile photo
+  notes?: string;          // optional notes about this person
+  created_at: string;      // ISO timestamp
+  updated_at?: string;     // ISO timestamp
 }
 
 // Spaced repetition data per entry (SM-2 algorithm)
@@ -31,7 +42,7 @@ export interface ReviewStats {
 // Offline sync queue item
 export interface SyncQueueItem {
   id: string;
-  type: 'entry' | 'bucket' | 'photo' | 'delete_entry' | 'delete_bucket';
+  type: 'entry' | 'bucket' | 'photo' | 'delete_entry' | 'delete_bucket' | 'person' | 'delete_person';
   payload: any;
   created_at: string;
   retries: number;

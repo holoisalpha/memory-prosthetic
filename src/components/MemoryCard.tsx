@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MemoryEntry, MemoryType } from '../lib/types';
 import { toggleHighlight } from '../hooks/useMemories';
+import { usePeopleByIds } from '../hooks/usePeople';
 import { PhotoLightbox } from './PhotoLightbox';
 
 const typeLabels: Record<MemoryType, string> = {
@@ -27,6 +28,7 @@ interface Props {
 
 export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightButton }: Props) {
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const taggedPeople = usePeopleByIds(entry.people || []);
 
   const timeString = new Date(entry.created_at).toLocaleTimeString(undefined, {
     hour: 'numeric',
@@ -96,6 +98,31 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
               className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded text-xs"
             >
               {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Tagged People */}
+      {taggedPeople && taggedPeople.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {taggedPeople.map(person => (
+            <span
+              key={person.id}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs"
+            >
+              {person.photo_url ? (
+                <img
+                  src={person.photo_url}
+                  alt=""
+                  className="w-4 h-4 rounded-full object-cover"
+                />
+              ) : (
+                <span className="w-4 h-4 rounded-full bg-blue-200 flex items-center justify-center text-blue-600 text-[10px] font-medium">
+                  {person.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              {person.name}
             </span>
           ))}
         </div>

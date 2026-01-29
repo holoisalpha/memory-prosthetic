@@ -13,12 +13,13 @@ import { Archive } from './screens/Archive';
 import { Train } from './screens/Train';
 import { Highlights } from './screens/Highlights';
 import { Bucket } from './screens/Bucket';
+import { People } from './screens/People';
 import { Settings } from './screens/Settings';
 import { Auth } from './components/Auth';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import type { MemoryEntry } from './lib/types';
 
-type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
+type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'people' | 'settings';
 
 export default function App() {
   const { isLoggedIn, userId, loading: authLoading } = useAuth();
@@ -128,6 +129,7 @@ export default function App() {
           onDeleteMemory={handleDeleteMemory}
           onNavigateToBucket={() => setScreen('bucket')}
           onNavigateToHighlights={() => setScreen('highlights')}
+          onNavigateToPeople={() => setScreen('people')}
           onNavigateToSettings={() => setScreen('settings')}
         />
       )}
@@ -144,6 +146,13 @@ export default function App() {
         />
       )}
       {screen === 'bucket' && <Bucket onBack={() => setScreen('home')} />}
+      {screen === 'people' && (
+        <People
+          onBack={() => setScreen('home')}
+          onEditMemory={handleEditMemory}
+          onDeleteMemory={handleDeleteMemory}
+        />
+      )}
       {screen === 'settings' && <Settings />}
 
       <BottomNav current={screen} onNavigate={setScreen} />

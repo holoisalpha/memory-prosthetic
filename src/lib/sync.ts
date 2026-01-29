@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { db } from './db';
 import { addToSyncQueue, retryWithBackoff, isOnline } from './syncQueue';
 import { migrateEntryPhotos, hasUnmigratedPhotos } from './photoStorage';
-import type { MemoryEntry, BucketItem, Settings, SyncStatus } from './types';
+import type { MemoryEntry, BucketItem, Settings, SyncStatus, Person } from './types';
 
 // Sync status
 let isSyncing = false;
@@ -254,6 +254,55 @@ export async function deleteBucketItemFromCloud(id: string, userId: string): Pro
   }
 }
 
+// Sync a person to cloud with retry and offline queue
+export async function syncPersonToCloud(person: Person, userId: string): Promise<boolean> {
+  if (!userId) return false;
+
+  if (!isOnline()) {
+    await addToSyncQueue('person', person);
+    return true;
+  }
+
+  try {
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('people').upsert({
+        ...person,
+        user_id: userId,
+        synced_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+      if (error) throw error;
+    }, 3);
+    return true;
+  } catch (error) {
+    console.error('Person sync failed, queuing:', error);
+    await addToSyncQueue('person', person);
+    return false;
+  }
+}
+
+// Delete person from cloud with retry and offline queue
+export async function deletePersonFromCloud(id: string, userId: string): Promise<boolean> {
+  if (!userId) return false;
+
+  if (!isOnline()) {
+    await addToSyncQueue('delete_person', { id });
+    return true;
+  }
+
+  try {
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('people').delete().eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    }, 3);
+    return true;
+  } catch (error) {
+    console.error('Delete person sync failed, queuing:', error);
+    await addToSyncQueue('delete_person', { id });
+    return false;
+  }
+}
+
 // Full bidirectional sync
 export async function fullSync(userId: string): Promise<{ uploaded: number; downloaded: number; error?: string }> {
   if (isSyncing) return { uploaded: 0, downloaded: 0, error: 'Sync already in progress' };
@@ -307,6 +356,28 @@ export async function fullSync(userId: string): Promise<{ uploaded: number; down
       if (!localBucketMap.has(item.id)) {
         const { user_id, synced_at, ...localItem } = item;
         await db.bucket.add(localItem as BucketItem);
+        downloaded++;
+      }
+    }
+
+    // Sync people
+    const localPeople = await db.people.toArray();
+    const { data: cloudPeople } = await supabase.from('people').select('*').eq('user_id', userId);
+
+    const localPeopleMap = new Map(localPeople.map(p => [p.id, p]));
+    const cloudPeopleMap = new Map((cloudPeople || []).map(p => [p.id, p]));
+
+    for (const person of localPeople) {
+      if (!cloudPeopleMap.has(person.id)) {
+        await syncPersonToCloud(person, userId);
+        uploaded++;
+      }
+    }
+
+    for (const person of cloudPeople || []) {
+      if (!localPeopleMap.has(person.id)) {
+        const { user_id, synced_at, ...localPerson } = person;
+        await db.people.add(localPerson as Person);
         downloaded++;
       }
     }

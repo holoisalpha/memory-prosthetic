@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { db } from './db';
 import { supabase } from './supabase';
-import type { SyncQueueItem, MemoryEntry, BucketItem } from './types';
+import type { SyncQueueItem, MemoryEntry, BucketItem, Person } from './types';
 
 const MAX_RETRIES = 5;
 const BASE_DELAY = 1000; // 1 second
@@ -93,6 +93,28 @@ async function processQueueItem(item: SyncQueueItem, userId: string): Promise<vo
 
     case 'photo': {
       // Photo uploads handled separately
+      break;
+    }
+
+    case 'person': {
+      const person = item.payload as Person;
+      const { error } = await supabase.from('people').upsert({
+        ...person,
+        user_id: userId,
+        synced_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+      if (error) throw error;
+      break;
+    }
+
+    case 'delete_person': {
+      const { id } = item.payload as { id: string };
+      const { error } = await supabase
+        .from('people')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (error) throw error;
       break;
     }
   }

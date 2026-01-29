@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { MemoryEntry, Settings, BucketItem, ReviewStats, SyncQueueItem } from './types';
+import type { MemoryEntry, Settings, BucketItem, ReviewStats, SyncQueueItem, Person } from './types';
 import { getETDateString, isToday as isTodayET } from './timezone';
 
 class MemoryDatabase extends Dexie {
@@ -8,6 +8,7 @@ class MemoryDatabase extends Dexie {
   bucket!: Table<BucketItem>;
   syncQueue!: Table<SyncQueueItem>;
   reviewStats!: Table<ReviewStats>;
+  people!: Table<Person>;
 
   constructor() {
     super('memory-prosthetic');
@@ -27,6 +28,15 @@ class MemoryDatabase extends Dexie {
       bucket: 'id, completed, created_at',
       syncQueue: 'id, type, created_at, retries',
       reviewStats: 'entryId'
+    });
+    // Version 4: Add people for tagging
+    this.version(4).stores({
+      entries: 'id, entry_date, type, tone, created_at, *tags, *people',
+      settings: 'id',
+      bucket: 'id, completed, created_at',
+      syncQueue: 'id, type, created_at, retries',
+      reviewStats: 'entryId',
+      people: 'id, name, created_at'
     });
   }
 }

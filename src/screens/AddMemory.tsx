@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { TypeSelector } from '../components/TypeSelector';
 import { ToneSelector } from '../components/ToneSelector';
 import { TagInput } from '../components/TagInput';
+import { PersonInput } from '../components/PersonInput';
 import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hooks/useMemories';
 import { useTags } from '../hooks/useTags';
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
@@ -20,6 +21,7 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   const [content, setContent] = useState(editingEntry?.content ?? '');
   const [tone, setTone] = useState<Tone>(editingEntry?.tone ?? 'neutral');
   const [tags, setTags] = useState<string[]>(editingEntry?.tags ?? []);
+  const [people, setPeople] = useState<string[]>(editingEntry?.people ?? []);
   // Support both photo_urls (new) and photo_url (legacy)
   const [photoUrls, setPhotoUrls] = useState<string[]>(
     editingEntry?.photo_urls ?? (editingEntry?.photo_url ? [editingEntry.photo_url] : [])
@@ -75,14 +77,15 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           tone,
           type,
           photo_urls: photoUrls.length > 0 ? photoUrls : undefined,
-          tags: tags.length > 0 ? tags : undefined
+          tags: tags.length > 0 ? tags : undefined,
+          people: people.length > 0 ? people : undefined
         });
         if (!success) {
           setError('Could not update entry');
           return;
         }
       } else {
-        const result = await addEntry(type, content.trim(), tone, photoUrls.length > 0 ? photoUrls : undefined, tags.length > 0 ? tags : undefined);
+        const result = await addEntry(type, content.trim(), tone, photoUrls.length > 0 ? photoUrls : undefined, tags.length > 0 ? tags : undefined, people.length > 0 ? people : undefined);
         if ('error' in result) {
           setError(result.error);
           return;
@@ -169,6 +172,18 @@ export function AddMemory({ onClose, editingEntry }: Props) {
             onChange={setTags}
             suggestions={allTags}
             placeholder="Add tags..."
+          />
+        </section>
+
+        {/* People */}
+        <section>
+          <label className="block text-xs text-stone-400 uppercase tracking-wide mb-2">
+            People (optional)
+          </label>
+          <PersonInput
+            selectedIds={people}
+            onChange={setPeople}
+            placeholder="Tag people..."
           />
         </section>
 

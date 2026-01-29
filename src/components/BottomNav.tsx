@@ -1,6 +1,6 @@
 interface Props {
-  current: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
-  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings') => void;
+  current: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'people' | 'settings';
+  onNavigate: (screen: 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'people' | 'settings') => void;
 }
 
 export function BottomNav({ current, onNavigate }: Props) {

@@ -80,7 +80,8 @@ export async function addEntry(
   content: string,
   tone: Tone = 'neutral',
   photoUrls?: string[],
-  tags?: string[]
+  tags?: string[],
+  people?: string[]
 ): Promise<MemoryEntry | { error: string }> {
   const today = getLocalDateString();
   const todaysEntries = await db.entries.where('entry_date').equals(today).toArray();
@@ -105,7 +106,8 @@ export async function addEntry(
     content: content.trim(),
     tone,
     photo_urls: photoUrls?.slice(0, 9), // max 9 photos
-    tags
+    tags,
+    people
   };
 
   await db.entries.add(entry);
@@ -121,7 +123,7 @@ export async function addEntry(
 // Update an entry
 export async function updateEntry(
   id: string,
-  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls' | 'tags'>>
+  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls' | 'tags' | 'people'>>
 ): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
