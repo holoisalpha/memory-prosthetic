@@ -1,11 +1,23 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuid } from 'uuid';
 import { db, getLocalDateString } from '../lib/db';
+import { syncEntryToCloud, deleteEntryFromCloud, syncBucketItemToCloud, deleteBucketItemFromCloud } from '../lib/sync';
 import type { MemoryEntry, MemoryType, Tone, Settings, BucketItem } from '../lib/types';
 
 const MAX_ENTRIES_PER_DAY = 3;
 const MAX_GRATITUDE_PER_DAY = 1;
 const MAX_CONTENT_LENGTH = 240;
+
+// Store current user ID for auto-sync
+let currentUserId: string | null = null;
+
+export function setCurrentUserId(userId: string | null) {
+  currentUserId = userId;
+}
+
+export function getCurrentUserId(): string | null {
+  return currentUserId;
+}
 
 // Get all entries for a specific date
 export function useEntriesForDate(date: string) {
@@ -101,6 +113,11 @@ export async function addEntry(
 
   await db.entries.add(entry);
 
+  // Auto-sync to cloud
+  if (currentUserId) {
+    syncEntryToCloud(entry, currentUserId).catch(console.error);
+  }
+
   return entry;
 }
 
@@ -131,6 +148,15 @@ export async function updateEntry(
   }
 
   await db.entries.update(id, updates);
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    const updatedEntry = await db.entries.get(id);
+    if (updatedEntry) {
+      syncEntryToCloud(updatedEntry, currentUserId).catch(console.error);
+    }
+  }
+
   return true;
 }
 
@@ -140,6 +166,12 @@ export async function deleteEntry(id: string): Promise<boolean> {
   if (!entry) return false;
 
   await db.entries.delete(id);
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    deleteEntryFromCloud(id, currentUserId).catch(console.error);
+  }
+
   return true;
 }
 
@@ -276,6 +308,15 @@ export async function toggleHighlight(id: string): Promise<boolean> {
   if (!entry) return false;
 
   await db.entries.update(id, { highlighted: !entry.highlighted });
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    const updatedEntry = await db.entries.get(id);
+    if (updatedEntry) {
+      syncEntryToCloud(updatedEntry, currentUserId).catch(console.error);
+    }
+  }
+
   return true;
 }
 
@@ -311,6 +352,12 @@ export async function addStandaloneHighlight(
   };
 
   await db.entries.add(entry);
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    syncEntryToCloud(entry, currentUserId).catch(console.error);
+  }
+
   return entry;
 }
 
@@ -333,6 +380,12 @@ export async function addBucketItem(content: string): Promise<BucketItem> {
   };
 
   await db.bucket.add(item);
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    syncBucketItemToCloud(item, currentUserId).catch(console.error);
+  }
+
   return item;
 }
 
@@ -345,12 +398,27 @@ export async function toggleBucketItem(id: string): Promise<boolean> {
     completed: !item.completed,
     completed_at: !item.completed ? new Date().toISOString() : undefined
   });
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    const updatedItem = await db.bucket.get(id);
+    if (updatedItem) {
+      syncBucketItemToCloud(updatedItem, currentUserId).catch(console.error);
+    }
+  }
+
   return true;
 }
 
 // Delete a bucket list item
 export async function deleteBucketItem(id: string): Promise<boolean> {
   await db.bucket.delete(id);
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    deleteBucketItemFromCloud(id, currentUserId).catch(console.error);
+  }
+
   return true;
 }
 
@@ -360,5 +428,14 @@ export async function updateBucketItem(id: string, content: string): Promise<boo
   if (!item) return false;
 
   await db.bucket.update(id, { content: content.trim() });
+
+  // Auto-sync to cloud
+  if (currentUserId) {
+    const updatedItem = await db.bucket.get(id);
+    if (updatedItem) {
+      syncBucketItemToCloud(updatedItem, currentUserId).catch(console.error);
+    }
+  }
+
   return true;
 }

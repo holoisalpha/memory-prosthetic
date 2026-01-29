@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { initSettings } from './lib/db';
-import { deleteEntry } from './hooks/useMemories';
+import { deleteEntry, setCurrentUserId } from './hooks/useMemories';
 import { useAuth } from './hooks/useAuth';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './screens/Home';
@@ -18,7 +18,7 @@ import type { MemoryEntry } from './lib/types';
 type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
 
 export default function App() {
-  const { isLoggedIn, loading: authLoading } = useAuth();
+  const { isLoggedIn, userId, loading: authLoading } = useAuth();
   const [screen, setScreen] = useState<Screen>('home');
   const [showAddMemory, setShowAddMemory] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MemoryEntry | null>(null);
@@ -28,6 +28,11 @@ export default function App() {
   useEffect(() => {
     initSettings();
   }, []);
+
+  // Set user ID for auto-sync
+  useEffect(() => {
+    setCurrentUserId(userId);
+  }, [userId]);
 
   // Show loading while checking auth
   if (authLoading) {
