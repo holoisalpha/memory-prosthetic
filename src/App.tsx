@@ -11,6 +11,7 @@ import { Train } from './screens/Train';
 import { Highlights } from './screens/Highlights';
 import { Bucket } from './screens/Bucket';
 import { Settings } from './screens/Settings';
+import { Auth } from './components/Auth';
 import type { MemoryEntry } from './lib/types';
 
 type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
@@ -18,6 +19,7 @@ type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [showAddMemory, setShowAddMemory] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MemoryEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -52,6 +54,13 @@ export default function App() {
   const handleBackFromDay = () => {
     setSelectedDate(null);
   };
+
+  // Render auth modal
+  if (showAuth) {
+    return (
+      <Auth onSuccess={() => setShowAuth(false)} />
+    );
+  }
 
   // Render add/edit modal
   if (showAddMemory) {
@@ -104,7 +113,7 @@ export default function App() {
         />
       )}
       {screen === 'bucket' && <Bucket onBack={() => setScreen('home')} />}
-      {screen === 'settings' && <Settings />}
+      {screen === 'settings' && <Settings onShowAuth={() => setShowAuth(true)} />}
 
       <BottomNav current={screen} onNavigate={setScreen} />
     </>
