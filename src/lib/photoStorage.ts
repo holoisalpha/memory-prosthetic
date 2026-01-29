@@ -81,7 +81,7 @@ export async function deletePhoto(url: string, userId: string): Promise<void> {
 // Upload photo with offline support
 export async function uploadPhotoWithQueue(
   file: File | Blob | string,
-  userId: string
+  _userId: string
 ): Promise<string> {
   // If it's already a Supabase URL, return it
   if (typeof file === 'string' && isSupabaseUrl(file)) {

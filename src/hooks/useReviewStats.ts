@@ -1,7 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { getETDateString } from '../lib/timezone';
-import type { ReviewStats, MemoryEntry } from '../lib/types';
 
 // Get all review stats
 export function useReviewStats() {

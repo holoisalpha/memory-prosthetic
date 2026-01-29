@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAllEntries, addEntry } from '../hooks/useMemories';
 import { useDueEntries, useReviewSummary } from '../hooks/useReviewStats';
 import { updateReviewStats, QUALITY, type Quality } from '../lib/spacedRepetition';
-import { formatDateET, isSundayET, getWeekStartET, getETDateString } from '../lib/timezone';
+import { formatDateET, isSundayET, getWeekStartET } from '../lib/timezone';
 import type { MemoryEntry, MemoryType } from '../lib/types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 

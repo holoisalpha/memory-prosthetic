@@ -1,7 +1,6 @@
 // SM-2 Spaced Repetition Algorithm
 // https://en.wikipedia.org/wiki/SuperMemo#SM-2_algorithm
 
-import { v4 as uuid } from 'uuid';
 import { db } from './db';
 import { getETDateString, addDays } from './timezone';
 import type { ReviewStats, MemoryEntry } from './types';
