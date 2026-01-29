@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { TypeSelector } from '../components/TypeSelector';
 import { ToneSelector } from '../components/ToneSelector';
 import { TagInput } from '../components/TagInput';
 import { PersonInput } from '../components/PersonInput';
+import { SaveCelebration } from '../components/SaveCelebration';
 import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hooks/useMemories';
 import { useTags } from '../hooks/useTags';
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
@@ -28,7 +29,13 @@ export function AddMemory({ onClose, editingEntry }: Props) {
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCelebrationComplete = useCallback(() => {
+    setShowCelebration(false);
+    onClose();
+  }, [onClose]);
 
   const canGratitude = canAddGratitude(entries) || editingEntry?.type === 'gratitude';
   const disabledTypes: MemoryType[] = canGratitude ? [] : ['gratitude'];
@@ -91,13 +98,20 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           return;
         }
       }
-      onClose();
+      // Show celebration for new entries, just close for edits
+      if (editingEntry) {
+        onClose();
+      } else {
+        setShowCelebration(true);
+      }
     } finally {
       setSaving(false);
     }
   };
 
   return (
+    <>
+    <SaveCelebration show={showCelebration} onComplete={handleCelebrationComplete} />
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       <header className="flex items-center justify-between px-4 py-4 border-b border-stone-200">
         <button
@@ -230,5 +244,6 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           </section>
       </main>
     </div>
+    </>
   );
 }

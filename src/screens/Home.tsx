@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTodaysEntries, useSettings, getResurfacedMemory } from '../hooks/useMemories';
 import { getTodaysPrompt } from '../data/prompts';
 import { MemoryCard } from '../components/MemoryCard';
+import { WeeklyDigest } from '../components/WeeklyDigest';
 import type { MemoryEntry } from '../lib/types';
 
 interface Props {
@@ -102,6 +103,9 @@ export function Home({ onAddMemory, onEditMemory, onDeleteMemory, onNavigateToBu
             </p>
           )}
         </section>
+
+        {/* Weekly digest */}
+        <WeeklyDigest />
 
         {/* Resurfaced memory - a delightful surprise from the past */}
         {resurfaced && (
