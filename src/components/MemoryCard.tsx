@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MemoryEntry, MemoryType } from '../lib/types';
 import { toggleHighlight } from '../hooks/useMemories';
+import { PhotoLightbox } from './PhotoLightbox';
 
 const typeLabels: Record<MemoryType, string> = {
   moment: 'Moment',
@@ -38,25 +39,12 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
 
   return (
     <>
-    {/* Lightbox */}
+    {/* Lightbox with pinch-to-zoom */}
     {lightboxPhoto && (
-      <div
-        className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-        onClick={() => setLightboxPhoto(null)}
-      >
-        <button
-          className="absolute top-4 right-4 text-white/80 hover:text-white text-2xl"
-          onClick={() => setLightboxPhoto(null)}
-        >
-          ×
-        </button>
-        <img
-          src={lightboxPhoto}
-          alt=""
-          className="max-w-full max-h-full object-contain"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </div>
+      <PhotoLightbox
+        src={lightboxPhoto}
+        onClose={() => setLightboxPhoto(null)}
+      />
     )}
     <article className={`bg-white rounded-lg border p-4 space-y-3 ${entry.highlighted ? 'border-amber-300 ring-1 ring-amber-100' : 'border-stone-200'}`}>
       <header className="flex items-center justify-between">
