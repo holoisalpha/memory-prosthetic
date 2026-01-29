@@ -2,18 +2,40 @@
 
 export type MemoryType = 'moment' | 'thought' | 'win' | 'gratitude';
 export type Tone = 'neutral' | 'light' | 'heavy';
+export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error';
 
 export interface MemoryEntry {
   id: string;
   created_at: string;      // ISO timestamp
-  entry_date: string;      // YYYY-MM-DD (local)
+  entry_date: string;      // YYYY-MM-DD in ET
   type: MemoryType;
-  content: string;         // max 240 characters
+  content: string;         // no character limit
   tone: Tone;
   photo_url?: string;      // deprecated, kept for migration
-  photo_urls?: string[];   // optional, max 3 photos per entry
+  photo_urls?: string[];   // optional, max 9 photos per entry
   highlighted?: boolean;   // marked as a core memory / highlight
   is_standalone_highlight?: boolean; // bypasses daily limits, for past life events
+  tags?: string[];         // custom tags
+}
+
+// Spaced repetition data per entry (SM-2 algorithm)
+export interface ReviewStats {
+  entryId: string;
+  easeFactor: number;      // starts at 2.5
+  interval: number;        // days until next review
+  nextReviewDate: string;  // YYYY-MM-DD
+  repetitions: number;     // successful reviews in a row
+  lastReviewed?: string;   // ISO timestamp
+}
+
+// Offline sync queue item
+export interface SyncQueueItem {
+  id: string;
+  type: 'entry' | 'bucket' | 'photo' | 'delete_entry' | 'delete_bucket';
+  payload: any;
+  created_at: string;
+  retries: number;
+  lastError?: string;
 }
 
 export interface DayData {

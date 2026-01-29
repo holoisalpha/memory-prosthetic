@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAllEntries, addEntry } from '../hooks/useMemories';
+import { useDueEntries, useReviewSummary } from '../hooks/useReviewStats';
+import { updateReviewStats, QUALITY, type Quality } from '../lib/spacedRepetition';
+import { formatDateET, isSundayET, getWeekStartET, getETDateString } from '../lib/timezone';
 import type { MemoryEntry, MemoryType } from '../lib/types';
-import { getLocalDateString } from '../lib/db';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 type Mode = 'menu' | 'quiz' | 'reflection';
 
@@ -12,90 +15,76 @@ const typeLabels: Record<MemoryType, string> = {
   gratitude: 'gratitude'
 };
 
-// Get entries from last 30 days
-function getRecentEntries(entries: MemoryEntry[]): MemoryEntry[] {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const cutoff = getLocalDateString(thirtyDaysAgo);
-
-  return entries.filter(e => e.entry_date >= cutoff);
-}
-
 // Get entries from this week (Sunday to Saturday)
 function getThisWeekEntries(entries: MemoryEntry[]): MemoryEntry[] {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - dayOfWeek);
-  const startDate = getLocalDateString(startOfWeek);
-
+  const startDate = getWeekStartET();
   return entries.filter(e => e.entry_date >= startDate);
-}
-
-// Check if today is Sunday
-function isSunday(): boolean {
-  return new Date().getDay() === 0;
 }
 
 export function Train() {
   const allEntries = useAllEntries();
+  const dueEntries = useDueEntries();
+  const reviewSummary = useReviewSummary();
   const [mode, setMode] = useState<Mode>('menu');
 
   // Quiz state
-  const [quizEntry, setQuizEntry] = useState<MemoryEntry | null>(null);
+  const [currentEntryIndex, setCurrentEntryIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const [quizStats, setQuizStats] = useState({ correct: 0, total: 0 });
+  const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Reflection state
   const [reflectionText, setReflectionText] = useState('');
   const [reflectionSaved, setReflectionSaved] = useState(false);
 
-  const recentEntries = allEntries ? getRecentEntries(allEntries) : [];
   const weekEntries = allEntries ? getThisWeekEntries(allEntries) : [];
+  const currentEntry = dueEntries?.[currentEntryIndex] ?? null;
 
   const startQuiz = () => {
-    if (recentEntries.length === 0) return;
-    const randomEntry = recentEntries[Math.floor(Math.random() * recentEntries.length)];
-    setQuizEntry(randomEntry);
+    setCurrentEntryIndex(0);
     setRevealed(false);
+    setSessionStats({ correct: 0, total: 0 });
     setMode('quiz');
   };
 
-  const nextQuestion = () => {
-    if (recentEntries.length === 0) return;
-    const randomEntry = recentEntries[Math.floor(Math.random() * recentEntries.length)];
-    setQuizEntry(randomEntry);
-    setRevealed(false);
-  };
+  const handleRecall = async (quality: Quality) => {
+    if (!currentEntry || isUpdating) return;
 
-  const handleRecall = (remembered: boolean) => {
-    setQuizStats(prev => ({
-      correct: prev.correct + (remembered ? 1 : 0),
-      total: prev.total + 1
-    }));
-    nextQuestion();
+    setIsUpdating(true);
+    try {
+      // Update spaced repetition stats
+      await updateReviewStats(currentEntry.id, quality);
+
+      // Update session stats
+      const remembered = quality >= QUALITY.HARD;
+      setSessionStats(prev => ({
+        correct: prev.correct + (remembered ? 1 : 0),
+        total: prev.total + 1
+      }));
+
+      // Move to next entry
+      if (currentEntryIndex < (dueEntries?.length ?? 0) - 1) {
+        setCurrentEntryIndex(prev => prev + 1);
+        setRevealed(false);
+      } else {
+        // No more entries
+        setMode('menu');
+      }
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const saveReflection = async () => {
     if (!reflectionText.trim()) return;
-
     await addEntry('thought', `Weekly reflection: ${reflectionText}`, 'neutral');
-
     setReflectionSaved(true);
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  if (!allEntries) {
+  if (!allEntries || !dueEntries || !reviewSummary) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <p className="text-stone-400">Loading...</p>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -106,14 +95,14 @@ export function Train() {
       <div className="min-h-screen bg-stone-50 pb-20">
         <header className="bg-white border-b border-stone-200 px-4 py-4">
           <h1 className="font-medium text-stone-900">Train Your Memory</h1>
-          <p className="text-xs text-stone-400 mt-1">Strengthen recall through practice</p>
+          <p className="text-xs text-stone-400 mt-1">Spaced repetition for better recall</p>
         </header>
 
         <main className="px-4 py-6 space-y-4 max-w-md mx-auto">
           {/* Memory Quiz Card */}
           <button
             onClick={startQuiz}
-            disabled={recentEntries.length === 0}
+            disabled={dueEntries.length === 0}
             className="w-full bg-white rounded-lg border border-stone-200 p-5 text-left hover:border-stone-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex items-start gap-4">
@@ -123,11 +112,19 @@ export function Train() {
               <div className="flex-1">
                 <h2 className="font-semibold text-stone-900">Memory Quiz</h2>
                 <p className="text-sm text-stone-500 mt-1">
-                  Test your recall on memories from the last 30 days
+                  Practice recall with spaced repetition
                 </p>
-                <p className="text-xs text-stone-400 mt-2">
-                  {recentEntries.length} memories available
-                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  {dueEntries.length > 0 ? (
+                    <span className="text-xs font-medium text-amber-600">
+                      {dueEntries.length} due for review
+                    </span>
+                  ) : (
+                    <span className="text-xs text-stone-400">
+                      All caught up!
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </button>
@@ -146,22 +143,48 @@ export function Train() {
                 <p className="text-sm text-stone-500 mt-1">
                   Review your week and capture your highlight
                 </p>
-                {isSunday() && (
+                {isSundayET() && (
                   <p className="text-xs text-amber-600 mt-2 font-medium">
-                    ✨ Perfect time to reflect!
+                    Perfect time to reflect!
                   </p>
                 )}
               </div>
             </div>
           </button>
 
-          {/* Stats */}
-          {quizStats.total > 0 && (
-            <div className="bg-stone-100 rounded-lg p-4 text-center">
-              <p className="text-sm text-stone-600">
-                Session: {quizStats.correct}/{quizStats.total} recalled
-                <span className="ml-2 text-stone-400">
-                  ({Math.round((quizStats.correct / quizStats.total) * 100)}%)
+          {/* Stats Panel */}
+          <div className="bg-white rounded-lg border border-stone-200 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-stone-700">Review Stats</h3>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-2xl font-semibold text-stone-900">{reviewSummary.totalEntries}</p>
+                <p className="text-xs text-stone-400">Total memories</p>
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-stone-900">{reviewSummary.reviewed}</p>
+                <p className="text-xs text-stone-400">Reviewed</p>
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-amber-600">{reviewSummary.dueToday}</p>
+                <p className="text-xs text-stone-400">Due today</p>
+              </div>
+            </div>
+            {reviewSummary.totalReviews > 0 && (
+              <div className="pt-2 border-t border-stone-100">
+                <p className="text-xs text-stone-500 text-center">
+                  {reviewSummary.totalReviews} total reviews
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Session Stats */}
+          {sessionStats.total > 0 && (
+            <div className="bg-emerald-50 rounded-lg p-4 text-center">
+              <p className="text-sm text-emerald-700">
+                Session: {sessionStats.correct}/{sessionStats.total} recalled
+                <span className="ml-2 text-emerald-500">
+                  ({Math.round((sessionStats.correct / sessionStats.total) * 100)}%)
                 </span>
               </p>
             </div>
@@ -172,7 +195,7 @@ export function Train() {
   }
 
   // Quiz screen
-  if (mode === 'quiz' && quizEntry) {
+  if (mode === 'quiz' && currentEntry) {
     return (
       <div className="min-h-screen bg-stone-50 pb-20">
         <header className="bg-white border-b border-stone-200 px-4 py-4 flex items-center justify-between">
@@ -180,10 +203,10 @@ export function Train() {
             onClick={() => setMode('menu')}
             className="text-stone-500 hover:text-stone-700 text-sm"
           >
-            ← Back
+            Done
           </button>
           <span className="text-sm text-stone-400">
-            {quizStats.total > 0 && `${quizStats.correct}/${quizStats.total}`}
+            {currentEntryIndex + 1} of {dueEntries.length}
           </span>
         </header>
 
@@ -193,11 +216,20 @@ export function Train() {
             <div className="text-center space-y-2">
               <p className="text-sm text-stone-400">On</p>
               <p className="text-xl font-semibold text-stone-900">
-                {formatDate(quizEntry.entry_date)}
+                {formatDateET(currentEntry.entry_date + 'T12:00:00', 'long')}
               </p>
               <p className="text-sm text-stone-400">
-                you recorded a <span className="font-medium text-stone-600">{typeLabels[quizEntry.type]}</span>
+                you recorded a <span className="font-medium text-stone-600">{typeLabels[currentEntry.type]}</span>
               </p>
+              {currentEntry.tags && currentEntry.tags.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-1 pt-1">
+                  {currentEntry.tags.map(tag => (
+                    <span key={tag} className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded text-xs">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="border-t border-stone-100 pt-6">
@@ -208,7 +240,7 @@ export function Train() {
               {revealed ? (
                 <div className="bg-stone-50 rounded-lg p-4">
                   <p className="text-stone-800 text-center leading-relaxed">
-                    {quizEntry.content}
+                    {currentEntry.content}
                   </p>
                 </div>
               ) : (
@@ -221,26 +253,76 @@ export function Train() {
               )}
             </div>
 
-            {/* Recall rating */}
+            {/* Recall rating with SM-2 quality levels */}
             {revealed && (
               <div className="space-y-3 pt-2">
-                <p className="text-center text-sm text-stone-500">Did you remember?</p>
-                <div className="flex gap-3">
+                <p className="text-center text-sm text-stone-500">How well did you remember?</p>
+                <div className="grid grid-cols-4 gap-2">
                   <button
-                    onClick={() => handleRecall(false)}
-                    className="flex-1 py-3 bg-stone-100 text-stone-600 rounded-lg font-medium hover:bg-stone-200 transition-colors"
+                    onClick={() => handleRecall(QUALITY.FORGOT)}
+                    disabled={isUpdating}
+                    className="py-3 px-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
                     Forgot
                   </button>
                   <button
-                    onClick={() => handleRecall(true)}
-                    className="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors"
+                    onClick={() => handleRecall(QUALITY.HARD)}
+                    disabled={isUpdating}
+                    className="py-3 px-2 bg-amber-50 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors disabled:opacity-50"
                   >
-                    Got it!
+                    Hard
+                  </button>
+                  <button
+                    onClick={() => handleRecall(QUALITY.GOOD)}
+                    disabled={isUpdating}
+                    className="py-3 px-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                  >
+                    Good
+                  </button>
+                  <button
+                    onClick={() => handleRecall(QUALITY.EASY)}
+                    disabled={isUpdating}
+                    className="py-3 px-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  >
+                    Easy
                   </button>
                 </div>
+                <p className="text-xs text-stone-400 text-center">
+                  Better recall = longer until next review
+                </p>
               </div>
             )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // No entries due
+  if (mode === 'quiz' && !currentEntry) {
+    return (
+      <div className="min-h-screen bg-stone-50 pb-20">
+        <header className="bg-white border-b border-stone-200 px-4 py-4">
+          <button
+            onClick={() => setMode('menu')}
+            className="text-stone-500 hover:text-stone-700 text-sm"
+          >
+            Back
+          </button>
+        </header>
+        <main className="px-4 py-8 max-w-md mx-auto text-center">
+          <div className="bg-white rounded-xl border border-stone-200 p-8">
+            <div className="text-4xl mb-4">🎉</div>
+            <h2 className="font-semibold text-stone-900 text-lg">All caught up!</h2>
+            <p className="text-sm text-stone-500 mt-2">
+              No memories due for review right now. Check back later!
+            </p>
+            <button
+              onClick={() => setMode('menu')}
+              className="mt-6 px-6 py-2 bg-stone-900 text-white rounded-lg font-medium"
+            >
+              Done
+            </button>
           </div>
         </main>
       </div>
@@ -260,7 +342,7 @@ export function Train() {
             }}
             className="text-stone-500 hover:text-stone-700 text-sm"
           >
-            ← Back
+            Back
           </button>
           <h1 className="font-medium text-stone-900 mt-2">Weekly Reflection</h1>
         </header>
@@ -302,9 +384,9 @@ export function Train() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs text-stone-400">
-                            {formatDate(entry.entry_date)}
+                            {formatDateET(entry.entry_date + 'T12:00:00', 'short')}
                           </span>
-                          <span className="text-xs text-stone-300">•</span>
+                          <span className="text-xs text-stone-300">-</span>
                           <span className="text-xs text-stone-400">
                             {typeLabels[entry.type]}
                           </span>
@@ -328,12 +410,8 @@ export function Train() {
                   onChange={(e) => setReflectionText(e.target.value)}
                   placeholder="The best part of my week was..."
                   className="w-full h-32 p-4 bg-white border border-stone-200 rounded-lg text-stone-800 placeholder:text-stone-400 resize-none focus:outline-none focus:border-stone-300"
-                  maxLength={240}
                 />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-stone-400">
-                    {reflectionText.length}/240
-                  </span>
+                <div className="flex justify-end">
                   <button
                     onClick={saveReflection}
                     disabled={!reflectionText.trim()}

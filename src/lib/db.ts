@@ -1,10 +1,13 @@
 import Dexie, { type Table } from 'dexie';
-import type { MemoryEntry, Settings, BucketItem } from './types';
+import type { MemoryEntry, Settings, BucketItem, ReviewStats, SyncQueueItem } from './types';
+import { getETDateString, isToday as isTodayET } from './timezone';
 
 class MemoryDatabase extends Dexie {
   entries!: Table<MemoryEntry>;
   settings!: Table<Settings>;
   bucket!: Table<BucketItem>;
+  syncQueue!: Table<SyncQueueItem>;
+  reviewStats!: Table<ReviewStats>;
 
   constructor() {
     super('memory-prosthetic');
@@ -17,22 +20,27 @@ class MemoryDatabase extends Dexie {
       settings: 'id',
       bucket: 'id, completed, created_at'
     });
+    // Version 3: Add tags, sync queue, and review stats
+    this.version(3).stores({
+      entries: 'id, entry_date, type, tone, created_at, *tags',
+      settings: 'id',
+      bucket: 'id, completed, created_at',
+      syncQueue: 'id, type, created_at, retries',
+      reviewStats: 'entryId'
+    });
   }
 }
 
 export const db = new MemoryDatabase();
 
-// Helper: Get local date string (YYYY-MM-DD)
+// Helper: Get date string in ET timezone (YYYY-MM-DD)
 export function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getETDateString(date);
 }
 
-// Helper: Check if a date string is today (local time)
+// Helper: Check if a date string is today in ET
 export function isToday(dateString: string): boolean {
-  return dateString === getLocalDateString();
+  return isTodayET(dateString);
 }
 
 // Helper: Check if entry is editable (only editable on same day)

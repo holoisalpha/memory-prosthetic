@@ -1,10 +1,32 @@
 import { supabase } from './supabase';
 import { db } from './db';
-import type { MemoryEntry, BucketItem, Settings } from './types';
+import { addToSyncQueue, retryWithBackoff, isOnline } from './syncQueue';
+import { migrateEntryPhotos, hasUnmigratedPhotos } from './photoStorage';
+import type { MemoryEntry, BucketItem, Settings, SyncStatus } from './types';
 
 // Sync status
 let isSyncing = false;
 let lastSyncTime: string | null = null;
+let currentSyncStatus: SyncStatus = 'idle';
+
+// Status change listeners
+type StatusListener = (status: SyncStatus) => void;
+const statusListeners: Set<StatusListener> = new Set();
+
+export function subscribeSyncStatus(listener: StatusListener): () => void {
+  statusListeners.add(listener);
+  listener(currentSyncStatus);
+  return () => statusListeners.delete(listener);
+}
+
+function setSyncStatus(status: SyncStatus) {
+  currentSyncStatus = status;
+  statusListeners.forEach(l => l(status));
+}
+
+export function getSyncStatus(): SyncStatus {
+  return currentSyncStatus;
+}
 
 // Upload local data to Supabase (for initial migration)
 export async function uploadAllToCloud(userId: string): Promise<{ entries: number; bucket: number; error?: string }> {
@@ -119,46 +141,117 @@ export async function downloadAllFromCloud(userId: string): Promise<{ entries: n
   }
 }
 
-// Sync a single entry to cloud
+// Sync a single entry to cloud with retry and offline queue
 export async function syncEntryToCloud(entry: MemoryEntry, userId: string): Promise<boolean> {
   if (!userId) return false;
 
-  const { error } = await supabase.from('entries').upsert({
-    ...entry,
-    user_id: userId,
-    synced_at: new Date().toISOString(),
-  }, { onConflict: 'id' });
+  // If offline, queue for later
+  if (!isOnline()) {
+    await addToSyncQueue('entry', entry);
+    setSyncStatus('offline');
+    return true; // Queued successfully
+  }
 
-  return !error;
+  try {
+    // Migrate photos if needed
+    let entryToSync = entry;
+    if (hasUnmigratedPhotos(entry)) {
+      const migratedUrls = await migrateEntryPhotos(entry, userId);
+      if (migratedUrls.length > 0) {
+        entryToSync = { ...entry, photo_urls: migratedUrls };
+        // Update local entry with migrated URLs
+        await db.entries.update(entry.id, { photo_urls: migratedUrls });
+      }
+    }
+
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('entries').upsert({
+        ...entryToSync,
+        user_id: userId,
+        synced_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+      if (error) throw error;
+    }, 3);
+
+    return true;
+  } catch (error) {
+    console.error('Sync failed, queuing for later:', error);
+    await addToSyncQueue('entry', entry);
+    setSyncStatus('error');
+    return false;
+  }
 }
 
-// Delete entry from cloud
+// Delete entry from cloud with retry and offline queue
 export async function deleteEntryFromCloud(id: string, userId: string): Promise<boolean> {
   if (!userId) return false;
 
-  const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', userId);
-  return !error;
+  if (!isOnline()) {
+    await addToSyncQueue('delete_entry', { id });
+    return true;
+  }
+
+  try {
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    }, 3);
+    return true;
+  } catch (error) {
+    console.error('Delete sync failed, queuing:', error);
+    await addToSyncQueue('delete_entry', { id });
+    return false;
+  }
 }
 
-// Sync a bucket item to cloud
+// Sync a bucket item to cloud with retry and offline queue
 export async function syncBucketItemToCloud(item: BucketItem, userId: string): Promise<boolean> {
   if (!userId) return false;
 
-  const { error } = await supabase.from('bucket_items').upsert({
-    ...item,
-    user_id: userId,
-    synced_at: new Date().toISOString(),
-  }, { onConflict: 'id' });
+  if (!isOnline()) {
+    await addToSyncQueue('bucket', item);
+    return true;
+  }
 
-  return !error;
+  try {
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('bucket_items').upsert({
+        ...item,
+        user_id: userId,
+        synced_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+      if (error) throw error;
+    }, 3);
+    return true;
+  } catch (error) {
+    console.error('Bucket sync failed, queuing:', error);
+    await addToSyncQueue('bucket', item);
+    return false;
+  }
 }
 
-// Delete bucket item from cloud
+// Delete bucket item from cloud with retry and offline queue
 export async function deleteBucketItemFromCloud(id: string, userId: string): Promise<boolean> {
   if (!userId) return false;
 
-  const { error } = await supabase.from('bucket_items').delete().eq('id', id).eq('user_id', userId);
-  return !error;
+  if (!isOnline()) {
+    await addToSyncQueue('delete_bucket', { id });
+    return true;
+  }
+
+  try {
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('bucket_items').delete().eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    }, 3);
+    return true;
+  } catch (error) {
+    console.error('Delete bucket sync failed, queuing:', error);
+    await addToSyncQueue('delete_bucket', { id });
+    return false;
+  }
 }
 
 // Full bidirectional sync

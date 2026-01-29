@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { initSettings } from './lib/db';
 import { deleteEntry, setCurrentUserId } from './hooks/useMemories';
 import { useAuth } from './hooks/useAuth';
+import { setupOnlineListener, processSyncQueue } from './lib/syncQueue';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './screens/Home';
 import { AddMemory } from './screens/AddMemory';
@@ -13,6 +15,7 @@ import { Highlights } from './screens/Highlights';
 import { Bucket } from './screens/Bucket';
 import { Settings } from './screens/Settings';
 import { Auth } from './components/Auth';
+import { LoadingSpinner } from './components/LoadingSpinner';
 import type { MemoryEntry } from './lib/types';
 
 type Screen = 'home' | 'calendar' | 'archive' | 'train' | 'highlights' | 'bucket' | 'settings';
@@ -29,23 +32,36 @@ export default function App() {
     initSettings();
   }, []);
 
-  // Set user ID for auto-sync
+  // Set user ID for auto-sync and setup online listener
   useEffect(() => {
     setCurrentUserId(userId);
+
+    if (userId) {
+      // Process any pending syncs
+      processSyncQueue(userId).catch(console.error);
+
+      // Setup listener for when app comes back online
+      const cleanup = setupOnlineListener(userId);
+      return cleanup;
+    }
   }, [userId]);
 
   // Show loading while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <p className="text-stone-400">Loading...</p>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   // Require authentication
   if (!isLoggedIn) {
-    return <Auth />;
+    return (
+      <ErrorBoundary>
+        <Auth />
+      </ErrorBoundary>
+    );
   }
 
   const handleAddMemory = () => {
@@ -78,17 +94,19 @@ export default function App() {
   // Render add/edit modal
   if (showAddMemory) {
     return (
-      <AddMemory
-        onClose={handleCloseAddMemory}
-        editingEntry={editingEntry}
-      />
+      <ErrorBoundary>
+        <AddMemory
+          onClose={handleCloseAddMemory}
+          editingEntry={editingEntry}
+        />
+      </ErrorBoundary>
     );
   }
 
   // Render day detail (from calendar)
   if (selectedDate) {
     return (
-      <>
+      <ErrorBoundary>
         <DayDetail
           date={selectedDate}
           onBack={handleBackFromDay}
@@ -96,13 +114,13 @@ export default function App() {
           onDeleteMemory={handleDeleteMemory}
         />
         <BottomNav current="calendar" onNavigate={(s) => { setSelectedDate(null); setScreen(s); }} />
-      </>
+      </ErrorBoundary>
     );
   }
 
   // Render main screens
   return (
-    <>
+    <ErrorBoundary>
       {screen === 'home' && (
         <Home
           onAddMemory={handleAddMemory}
@@ -129,6 +147,6 @@ export default function App() {
       {screen === 'settings' && <Settings />}
 
       <BottomNav current={screen} onNavigate={setScreen} />
-    </>
+    </ErrorBoundary>
   );
 }

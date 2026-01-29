@@ -6,7 +6,6 @@ import type { MemoryEntry, MemoryType, Tone, Settings, BucketItem } from '../lib
 
 const MAX_ENTRIES_PER_DAY = 3;
 const MAX_GRATITUDE_PER_DAY = 1;
-const MAX_CONTENT_LENGTH = 240;
 
 // Store current user ID for auto-sync
 let currentUserId: string | null = null;
@@ -80,7 +79,8 @@ export async function addEntry(
   type: MemoryType,
   content: string,
   tone: Tone = 'neutral',
-  photoUrls?: string[]
+  photoUrls?: string[],
+  tags?: string[]
 ): Promise<MemoryEntry | { error: string }> {
   const today = getLocalDateString();
   const todaysEntries = await db.entries.where('entry_date').equals(today).toArray();
@@ -97,10 +97,6 @@ export async function addEntry(
     }
   }
 
-  if (content.length > MAX_CONTENT_LENGTH) {
-    return { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` };
-  }
-
   const entry: MemoryEntry = {
     id: uuid(),
     created_at: new Date().toISOString(),
@@ -108,7 +104,8 @@ export async function addEntry(
     type,
     content: content.trim(),
     tone,
-    photo_urls: photoUrls?.slice(0, 9) // max 9 photos
+    photo_urls: photoUrls?.slice(0, 9), // max 9 photos
+    tags
   };
 
   await db.entries.add(entry);
@@ -124,14 +121,10 @@ export async function addEntry(
 // Update an entry
 export async function updateEntry(
   id: string,
-  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls'>>
+  updates: Partial<Pick<MemoryEntry, 'content' | 'tone' | 'type' | 'photo_urls' | 'tags'>>
 ): Promise<boolean> {
   const entry = await db.entries.get(id);
   if (!entry) return false;
-
-  if (updates.content && updates.content.length > MAX_CONTENT_LENGTH) {
-    return false;
-  }
 
   // If changing to gratitude, check limit
   if (updates.type === 'gratitude' && entry.type !== 'gratitude') {
@@ -335,10 +328,6 @@ export async function addStandaloneHighlight(
   tone: Tone = 'neutral',
   photoUrls?: string[]
 ): Promise<MemoryEntry | { error: string }> {
-  if (content.length > MAX_CONTENT_LENGTH) {
-    return { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` };
-  }
-
   const entry: MemoryEntry = {
     id: uuid(),
     created_at: new Date().toISOString(),
@@ -346,7 +335,7 @@ export async function addStandaloneHighlight(
     type,
     content: content.trim(),
     tone,
-    photo_urls: photoUrls?.slice(0, 3), // max 3 photos
+    photo_urls: photoUrls?.slice(0, 9), // max 9 photos
     highlighted: true,
     is_standalone_highlight: true
   };

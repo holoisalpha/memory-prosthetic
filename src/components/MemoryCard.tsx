@@ -99,6 +99,20 @@ export function MemoryCard({ entry, onEdit, onDelete, showDate, hideHighlightBut
         {entry.content}
       </p>
 
+      {/* Tags */}
+      {entry.tags && entry.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {entry.tags.map(tag => (
+            <span
+              key={tag}
+              className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded text-xs"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Support both photo_urls (new) and photo_url (legacy) */}
       {(entry.photo_urls && entry.photo_urls.length > 0) || entry.photo_url ? (() => {
         const photos = entry.photo_urls && entry.photo_urls.length > 0

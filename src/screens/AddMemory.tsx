@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { TypeSelector } from '../components/TypeSelector';
 import { ToneSelector } from '../components/ToneSelector';
+import { TagInput } from '../components/TagInput';
 import { useTodaysEntries, canAddGratitude, addEntry, updateEntry } from '../hooks/useMemories';
+import { useTags } from '../hooks/useTags';
 import type { MemoryEntry, MemoryType, Tone } from '../lib/types';
 
-const MAX_LENGTH = 240;
 const MAX_PHOTOS = 9;
 
 interface Props {
@@ -14,9 +15,11 @@ interface Props {
 
 export function AddMemory({ onClose, editingEntry }: Props) {
   const entries = useTodaysEntries();
+  const { allTags } = useTags();
   const [type, setType] = useState<MemoryType>(editingEntry?.type ?? 'moment');
   const [content, setContent] = useState(editingEntry?.content ?? '');
   const [tone, setTone] = useState<Tone>(editingEntry?.tone ?? 'neutral');
+  const [tags, setTags] = useState<string[]>(editingEntry?.tags ?? []);
   // Support both photo_urls (new) and photo_url (legacy)
   const [photoUrls, setPhotoUrls] = useState<string[]>(
     editingEntry?.photo_urls ?? (editingEntry?.photo_url ? [editingEntry.photo_url] : [])
@@ -67,13 +70,19 @@ export function AddMemory({ onClose, editingEntry }: Props) {
 
     try {
       if (editingEntry) {
-        const success = await updateEntry(editingEntry.id, { content: content.trim(), tone, type, photo_urls: photoUrls.length > 0 ? photoUrls : undefined });
+        const success = await updateEntry(editingEntry.id, {
+          content: content.trim(),
+          tone,
+          type,
+          photo_urls: photoUrls.length > 0 ? photoUrls : undefined,
+          tags: tags.length > 0 ? tags : undefined
+        });
         if (!success) {
           setError('Could not update entry');
           return;
         }
       } else {
-        const result = await addEntry(type, content.trim(), tone, photoUrls.length > 0 ? photoUrls : undefined);
+        const result = await addEntry(type, content.trim(), tone, photoUrls.length > 0 ? photoUrls : undefined, tags.length > 0 ? tags : undefined);
         if ('error' in result) {
           setError(result.error);
           return;
@@ -132,15 +141,14 @@ export function AddMemory({ onClose, editingEntry }: Props) {
           </label>
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, MAX_LENGTH))}
+            onChange={(e) => setContent(e.target.value)}
             placeholder="What do you want to remember?"
             className="w-full h-32 p-3 border border-stone-200 rounded-lg text-stone-800 text-sm resize-none focus:outline-none focus:border-stone-400"
             autoFocus
           />
-          <div className="flex justify-between text-xs text-stone-400 mt-1">
-            <span>{error && <span className="text-red-500">{error}</span>}</span>
-            <span>{content.length}/{MAX_LENGTH}</span>
-          </div>
+          {error && (
+            <div className="text-xs text-red-500 mt-1">{error}</div>
+          )}
         </section>
 
         {/* Tone */}
@@ -149,6 +157,19 @@ export function AddMemory({ onClose, editingEntry }: Props) {
             Tone (optional)
           </label>
           <ToneSelector selected={tone} onChange={setTone} />
+        </section>
+
+        {/* Tags */}
+        <section>
+          <label className="block text-xs text-stone-400 uppercase tracking-wide mb-2">
+            Tags (optional)
+          </label>
+          <TagInput
+            tags={tags}
+            onChange={setTags}
+            suggestions={allTags}
+            placeholder="Add tags..."
+          />
         </section>
 
         {/* Photos */}
